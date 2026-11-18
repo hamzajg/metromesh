@@ -1,8 +1,8 @@
-using MetroMesh.Telemetry.Ingest.Contracts;
+using MetroMesh.Telemetry.Core.Contracts;
 using Npgsql;
 using NpgsqlTypes;
 
-namespace MetroMesh.Telemetry.Ingest.Persistence;
+namespace MetroMesh.Telemetry.Core.Persistence;
 
 public sealed class PostgresTelemetryEventStore : ITelemetryEventStore
 {
@@ -145,6 +145,55 @@ public sealed class PostgresTelemetryEventStore : ITelemetryEventStore
             """;
 
         await ExecuteAsync(sql, eventId, error, cancellationToken);
+    }
+
+    public async Task<bool> TryMarkProcessedAsync(string eventId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE telemetry_events
+            SET status = 'processed', processed_at = now()
+            WHERE event_id = @eventId
+              AND processed_at IS NULL
+              AND status IN ('accepted', 'published');
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("eventId", eventId);
+        var rows = await command.ExecuteNonQueryAsync(cancellationToken);
+        return rows > 0;
+    }
+
+    public async Task<bool> RecordProcessingFailureAsync(string eventId, string error, int maxAttempts, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE telemetry_events
+            SET attempts = attempts + 1,
+                last_error = @error,
+                status = CASE WHEN attempts + 1 >= @maxAttempts THEN 'dead_lettered' ELSE status END,
+                dead_lettered_at = CASE WHEN attempts + 1 >= @maxAttempts THEN now() ELSE dead_lettered_at END
+            WHERE event_id = @eventId
+              AND dead_lettered_at IS NULL
+              AND status IN ('accepted', 'published')
+            RETURNING status;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("eventId", eventId);
+        command.Parameters.AddWithValue("error", error);
+        command.Parameters.AddWithValue("maxAttempts", maxAttempts);
+
+        var status = await command.ExecuteScalarAsync(cancellationToken) as string;
+        return status == "dead_lettered";
+    }
+
+    public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand("SELECT 1", connection);
+        await command.ExecuteScalarAsync(cancellationToken);
+        return true;
     }
 
     private async Task ExecuteAsync(string sql, string eventId, string? error, CancellationToken cancellationToken)

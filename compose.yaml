@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: metromesh
+      POSTGRES_PASSWORD: metromesh
+      POSTGRES_DB: metromesh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metromesh -d metromesh"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.3.1
+    command: >
+      redpanda start
+      --mode dev-container
+      --smp 1
+      --overprovisioned
+      --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  ingest:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Telemetry.Ingest/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__TelemetryDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Kafka__BootstrapServers: redpanda:9092
+      MetroMesh__ApiKey: dev-api-key
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Telemetry.Worker/Dockerfile
+    environment:
+      ConnectionStrings__TelemetryDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Kafka__BootstrapServers: redpanda:9092
+      Kafka__TelemetryTopic: equipment.telemetry.v1
+      Kafka__ConsumerGroup: telemetry-worker
+      Worker__HealthUrl: http://0.0.0.0:8081/
+      Worker__MaxAttempts: "3"
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
