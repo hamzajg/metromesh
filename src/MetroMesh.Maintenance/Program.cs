@@ -1,8 +1,10 @@
 using MetroMesh.Maintenance.Contracts;
+using MetroMesh.Maintenance.Events;
 using MetroMesh.Maintenance.Middleware;
 using MetroMesh.Maintenance.Persistence;
 using MetroMesh.Maintenance.Services;
 using MetroMesh.Maintenance.Validation;
+using MetroMesh.Telemetry.Core.Events;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,9 @@ builder.Services.AddSingleton(_ =>
     return NpgsqlDataSource.Create(connectionString);
 });
 builder.Services.AddSingleton<IMaintenanceStore, PostgresMaintenanceStore>();
+builder.Services.AddSingleton<IEventBus, ConfluentKafkaEventBus>();
+builder.Services.AddSingleton<IOutboxPublisher, KafkaOutboxPublisher>();
+builder.Services.AddHostedService<OutboxPublisherService>();
 
 var registryBaseUrl = builder.Configuration["Maintenance:Registry:BaseUrl"] ?? "http://localhost:8082";
 var registryApiKey = builder.Configuration["Maintenance:Registry:ApiKey"]
@@ -153,6 +158,14 @@ app.MapPost("/v1/maintenance-requests", async (
             request.Details,
             cancellationToken);
 
+        await MaintenanceEvents.EmitAsync(store, "maintenance.request.created", record.Id, new
+        {
+            record.EquipmentId,
+            record.Severity,
+            record.Source,
+            record.Status
+        }, cancellationToken);
+
         return Results.Created($"/v1/maintenance-requests/{record.Id}", new MaintenanceRequestResponse(
             record.Id,
             record.EquipmentId,
@@ -234,6 +247,15 @@ app.MapPost("/v1/work-orders", async (
             await store.UpdateRequestStatusAsync(request.RequestId, "converted", cancellationToken);
         }
 
+        await MaintenanceEvents.EmitAsync(store, "maintenance.workorder.created", record.Id, new
+        {
+            record.RequestId,
+            record.EquipmentId,
+            record.Type,
+            record.Priority,
+            record.Status
+        }, cancellationToken);
+
         return Results.Created($"/v1/work-orders/{record.Id}", ToWorkOrderResponse(record));
     })
     .WithName("CreateWorkOrder")
@@ -290,6 +312,23 @@ async Task<IResult> TransitionAsync(
     }
 
     var updated = await store.TransitionWorkOrderAsync(workOrderId, toStatus, assignee, resolution, note, cancellationToken);
+    if (updated is not null)
+    {
+        var eventName = toStatus switch
+        {
+            "in_progress" => "started",
+            _ => toStatus
+        };
+        await MaintenanceEvents.EmitAsync(store, $"maintenance.workorder.{eventName}", updated.Id, new
+        {
+            updated.RequestId,
+            updated.EquipmentId,
+            updated.Assignee,
+            fromStatus = current.Status,
+            toStatus = updated.Status
+        }, cancellationToken);
+    }
+
     return updated is null
         ? Results.NotFound()
         : Results.Ok(ToWorkOrderResponse(updated));

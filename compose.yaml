@@ -67,6 +67,28 @@ services:
       redpanda:
         condition: service_healthy
 
+  maintenance:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Maintenance/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8083
+      ConnectionStrings__MaintenanceDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Maintenance__Registry__BaseUrl: http://registry:8082
+      Maintenance__Registry__ApiKey: dev-api-key
+      Kafka__BootstrapServers: redpanda:9092
+      Kafka__MaintenanceTopic: maintenance.workorder.v1
+      MetroMesh__ApiKey: dev-api-key
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      registry:
+        condition: service_started
+
   worker:
     build:
       context: .

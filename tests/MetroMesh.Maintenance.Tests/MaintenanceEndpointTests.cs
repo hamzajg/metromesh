@@ -287,6 +287,48 @@ public sealed class MaintenanceEndpointTests : IClassFixture<MaintenanceFactory>
         Assert.Equal("converted", getDoc.RootElement.GetProperty("status").GetString());
     }
 
+    [Fact(DisplayName = "Maintenance mutation emits a domain event")]
+    public async Task Maintenance_mutation_emits_a_domain_event()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var create = await client.PostAsJsonAsync("/v1/work-orders", new
+        {
+            equipmentId = "eq_turnstile_1",
+            type = "repair",
+            priority = "medium",
+            title = "Emit event check"
+        });
+        using var createDoc = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var orderId = createDoc.RootElement.GetProperty("id").GetString();
+
+        var before = MaintenanceFactory.Store.PendingOutbox.Count;
+        var assign = await client.PostAsJsonAsync($"/v1/work-orders/{orderId}/assign", new { assignee = "tech-9" });
+        Assert.Equal(HttpStatusCode.OK, assign.StatusCode);
+
+        var pending = MaintenanceFactory.Store.PendingOutbox.Skip(before).ToList();
+        Assert.NotEmpty(pending);
+        Assert.Equal("maintenance.workorder.assigned", pending.Last().EventType);
+        Assert.Equal(orderId, pending.Last().AggregateId);
+        Assert.Contains("maintenance.workorder.assigned", pending.Last().EnvelopeJson);
+    }
+
+    [Fact(DisplayName = "Maintenance service reports health in compose stack")]
+    public async Task Maintenance_service_reports_health_in_compose_stack()
+    {
+        using var client = _factory.CreateClient();
+
+        using var liveResponse = await client.GetAsync("/health/live");
+        Assert.Equal(HttpStatusCode.OK, liveResponse.StatusCode);
+
+        using var readyResponse = await client.GetAsync("/health/ready");
+        Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+
+        using var doc = JsonDocument.Parse(await readyResponse.Content.ReadAsStringAsync());
+        Assert.Equal("ready", doc.RootElement.GetProperty("status").GetString());
+    }
+
     [Fact(DisplayName = "Work against decommissioned equipment is rejected")]
     public async Task Work_against_decommissioned_equipment_is_rejected()
     {

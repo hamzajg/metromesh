@@ -9,6 +9,7 @@ public sealed class FakeMaintenanceStore : IMaintenanceStore
     private readonly ConcurrentDictionary<string, MaintenanceRequestRecord> _requests = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, WorkOrderRecord> _workOrders = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, List<WorkOrderHistoryRecord>> _history = new(StringComparer.Ordinal);
+    private readonly List<OutboxRecord> _outbox = [];
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -108,6 +109,35 @@ public sealed class FakeMaintenanceStore : IMaintenanceStore
         if (_requests.TryGetValue(requestId, out var record))
         {
             _requests[requestId] = record with { Status = status };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public IReadOnlyList<OutboxRecord> PendingOutbox => _outbox.ToList();
+
+    public Task InsertOutboxEventAsync(string eventType, string aggregateId, string envelopeJson, CancellationToken cancellationToken = default)
+    {
+        _outbox.Add(new OutboxRecord($"out_{Guid.NewGuid():N}", eventType, aggregateId, envelopeJson, 0));
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<OutboxRecord>> GetUnpublishedOutboxAsync(int batchSize, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<OutboxRecord>>(_outbox.Take(batchSize).ToList());
+
+    public Task MarkOutboxPublishedAsync(string outboxId, CancellationToken cancellationToken = default)
+    {
+        _outbox.RemoveAll(o => o.Id == outboxId);
+        return Task.CompletedTask;
+    }
+
+    public Task MarkOutboxFailedAsync(string outboxId, string error, CancellationToken cancellationToken = default)
+    {
+        var index = _outbox.FindIndex(o => o.Id == outboxId);
+        if (index >= 0)
+        {
+            var o = _outbox[index];
+            _outbox[index] = o with { Attempts = o.Attempts + 1 };
         }
 
         return Task.CompletedTask;
