@@ -1,0 +1,32 @@
+{
+  "feature": "equipment-telemetry-backbone",
+  "status": "running",
+  "iterations": 3,
+  "updated": "2026-11-18T00:19:06Z",
+  "waves": {
+    "1": {
+      "status": "in-progress",
+      "branch": "feat/equipment-telemetry-backbone-w1",
+      "pr": "\u2014",
+      "evidence": "\u2014",
+      "updated": "2026-11-18T00:19:06Z"
+    }
+  },
+  "gates": {
+    "G1": {
+      "status": "met",
+      "evidence": "file:specs/equipment-telemetry-backbone/DECISION-REVIEW.md \u2014 verdict ACCEPT",
+      "updated": "2026-11-18T00:18:44Z"
+    },
+    "G2": {
+      "status": "met",
+      "evidence": "command:docker info --format '{{.ServerVersion}}' -> 29.10.0",
+      "updated": "2026-11-18T00:18:56Z"
+    }
+  },
+  "events": [
+    "2026-11-18T00:18:44Z gate G1 met: file:specs/equipment-telemetry-backbone/DECISION-REVIEW.md \u2014 verdict ACCEPT",
+    "2026-11-18T00:18:56Z gate G2 met: command:docker info --format '{{.ServerVersion}}' -> 29.10.0",
+    "2026-11-18T00:19:06Z start wave 1 on feat/equipment-telemetry-backbone-w1"
+  ]
+}
