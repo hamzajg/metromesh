@@ -1,4 +1,4 @@
-using MetroMesh.Telemetry.Ingest.Persistence;
+using MetroMesh.Telemetry.Core.Persistence;
 
 namespace MetroMesh.Telemetry.Ingest.Events;
 
