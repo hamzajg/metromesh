@@ -1,8 +1,8 @@
 # Delivery Loop — maintenance-operations
 
-Status: running
+Status: done
 Iterations: 1
-Updated: 2026-11-18T01:43:34Z
+Updated: 2026-11-18T01:44:34Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -26,3 +26,4 @@ Updated: 2026-11-18T01:43:34Z
 - 2026-11-18T01:41:21Z complete wave 2 (#15): tests 34/34 (Maintenance 13/13 incl. real Postgres transition+history; Registry 11/11; Worker 4/4; Ingest 6/6), no CI ch
 - 2026-11-18T01:41:23Z start wave 3 on feat/maintenance-operations-w3
 - 2026-11-18T01:43:34Z complete wave 3 (#16): tests 37/37 (Maintenance 16/16 incl. real Postgres+Redpanda outbox publish/consume; Registry 11/11; Worker 4/4; Ingest 6
+- 2026-11-18T01:44:34Z feature validated and shipped

@@ -1,8 +1,8 @@
 {
   "feature": "maintenance-operations",
-  "status": "running",
+  "status": "done",
   "iterations": 1,
-  "updated": "2026-11-18T01:43:34Z",
+  "updated": "2026-11-18T01:44:34Z",
   "waves": {
     "1": {
       "status": "done",
@@ -41,6 +41,7 @@
     "2026-11-18T01:38:29Z start wave 2 on feat/maintenance-operations-w2",
     "2026-11-18T01:41:21Z complete wave 2 (#15): tests 34/34 (Maintenance 13/13 incl. real Postgres transition+history; Registry 11/11; Worker 4/4; Ingest 6/6), no CI ch",
     "2026-11-18T01:41:23Z start wave 3 on feat/maintenance-operations-w3",
-    "2026-11-18T01:43:34Z complete wave 3 (#16): tests 37/37 (Maintenance 16/16 incl. real Postgres+Redpanda outbox publish/consume; Registry 11/11; Worker 4/4; Ingest 6"
+    "2026-11-18T01:43:34Z complete wave 3 (#16): tests 37/37 (Maintenance 16/16 incl. real Postgres+Redpanda outbox publish/consume; Registry 11/11; Worker 4/4; Ingest 6",
+    "2026-11-18T01:44:34Z feature validated and shipped"
   ]
 }
