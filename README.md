@@ -20,6 +20,11 @@ MetroMesh transit operations platform — event-driven equipment telemetry backb
   stations and turnstile/camera equipment: registration with validation,
   lifecycle transitions, station-close cascade, inventory queries, and
   domain events published via outbox to `equipment.registry.v1`.
+- **Maintenance API** (`src/MetroMesh.Maintenance`, port 8083) turns faults
+  into tracked work: maintenance requests, work orders with an
+  assign/start/complete/cancel lifecycle, transactional history, equipment
+  validation against the registry, and domain events via outbox to
+  `maintenance.workorder.v1`.
 
 ## Quickstart (local smoke)
 
@@ -58,6 +63,9 @@ curl -s http://localhost:8080/v1/events/evt_1 -H 'X-MetroMesh-Api-Key: dev-api-k
 | Registry DB | `ConnectionStrings__RegistryDb` | required by registry service |
 | Registry topic | `Kafka__RegistryTopic` | `equipment.registry.v1` |
 | Registry outbox | `Outbox__Enabled` / `Outbox__PollIntervalMs` / `Outbox__BatchSize` | `true` / `1000` / `50` |
+| Maintenance DB | `ConnectionStrings__MaintenanceDb` | required by maintenance service |
+| Maintenance topic | `Kafka__MaintenanceTopic` | `maintenance.workorder.v1` |
+| Registry endpoint (for maintenance) | `Maintenance__Registry__BaseUrl` / `Maintenance__Registry__ApiKey` | `http://localhost:8082` / `MetroMesh__ApiKey` |
 
 ## Develop
 
@@ -73,5 +81,5 @@ xUnit + Testcontainers (Postgres/Redpanda) for integration coverage.
 ## Specs
 
 Feature specs and delivery-loop state live under `specs/`. See
-`specs/equipment-telemetry-backbone/` and
-`specs/station-equipment-registry/` for the shipped features.
+`specs/equipment-telemetry-backbone/`, `specs/station-equipment-registry/`,
+and `specs/maintenance-operations/` for the shipped features.
