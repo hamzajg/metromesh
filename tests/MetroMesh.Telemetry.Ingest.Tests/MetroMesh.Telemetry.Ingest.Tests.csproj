@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\MetroMesh.Telemetry.Core\MetroMesh.Telemetry.Core.csproj" />
     <ProjectReference Include="..\..\src\MetroMesh.Telemetry.Ingest\MetroMesh.Telemetry.Ingest.csproj" />
   </ItemGroup>
 

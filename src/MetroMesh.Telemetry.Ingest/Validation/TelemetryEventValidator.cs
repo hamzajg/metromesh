@@ -1,4 +1,4 @@
-using MetroMesh.Telemetry.Ingest.Contracts;
+using MetroMesh.Telemetry.Core.Contracts;
 
 namespace MetroMesh.Telemetry.Ingest.Validation;
 
