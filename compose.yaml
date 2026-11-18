@@ -58,7 +58,10 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       Kafka__TelemetryTopic: equipment.telemetry.v1
       Kafka__ConsumerGroup: telemetry-worker
+      Worker__HealthUrl: http://0.0.0.0:8081/
       Worker__MaxAttempts: "3"
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy

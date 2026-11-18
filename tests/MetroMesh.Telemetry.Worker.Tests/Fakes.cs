@@ -11,6 +11,8 @@ public sealed class FakeTelemetryEventStore : ITelemetryEventStore
 
     public int ProcessedCount;
 
+    public bool PingOk { get; set; } = true;
+
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task InsertAcceptedAsync(TelemetryEventEnvelope envelope, string envelopeJson, CancellationToken cancellationToken = default)
@@ -104,7 +106,7 @@ public sealed class FakeTelemetryEventStore : ITelemetryEventStore
         return Task.FromResult(false);
     }
 
-    public Task<bool> PingAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+    public Task<bool> PingAsync(CancellationToken cancellationToken = default) => Task.FromResult(PingOk);
 
     private sealed class Entry
     {

@@ -16,6 +16,7 @@ builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
 builder.Services.AddSingleton<ITelemetryEventStore, PostgresTelemetryEventStore>();
 builder.Services.AddSingleton<TelemetryEventProcessor>();
 builder.Services.AddHostedService<TelemetryConsumerService>();
+builder.Services.AddHostedService<WorkerHealthService>();
 
 var host = builder.Build();
 

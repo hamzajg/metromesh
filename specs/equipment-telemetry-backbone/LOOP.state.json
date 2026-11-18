@@ -2,7 +2,7 @@
   "feature": "equipment-telemetry-backbone",
   "status": "running",
   "iterations": 4,
-  "updated": "2026-11-18T00:33:32Z",
+  "updated": "2026-11-18T00:35:01Z",
   "waves": {
     "1": {
       "status": "done",
@@ -26,11 +26,11 @@
       "updated": "2026-11-18T00:33:18Z"
     },
     "4": {
-      "status": "in-progress",
+      "status": "done",
       "branch": "feat/equipment-telemetry-backbone-w4",
-      "pr": "\u2014",
-      "evidence": "\u2014",
-      "updated": "2026-11-18T00:33:32Z"
+      "pr": "#6",
+      "evidence": "tests 9/9 passing via dotnet test --no-build (Ingest 6/6, Worker 3/3); dead-letter verified on real Postgres Testcontain",
+      "updated": "2026-11-18T00:35:01Z"
     }
   },
   "gates": {
@@ -55,6 +55,7 @@
     "2026-11-18T00:29:50Z complete wave 2 (#4): tests 5/5 passing via dotnet test --no-restore incl. Postgres+Redpanda Testcontainers; no CI checks configured; PR #4 op",
     "2026-11-18T00:30:17Z start wave 3 on feat/equipment-telemetry-backbone-w3",
     "2026-11-18T00:33:18Z complete wave 3 (#5): tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa",
-    "2026-11-18T00:33:32Z start wave 4 on feat/equipment-telemetry-backbone-w4"
+    "2026-11-18T00:33:32Z start wave 4 on feat/equipment-telemetry-backbone-w4",
+    "2026-11-18T00:35:01Z complete wave 4 (#6): tests 9/9 passing via dotnet test --no-build (Ingest 6/6, Worker 3/3); dead-letter verified on real Postgres Testcontain"
   ]
 }
