@@ -16,6 +16,10 @@ MetroMesh transit operations platform — event-driven equipment telemetry backb
 - **Status + health** — `GET /v1/events/{eventId}` reports
   accepted/published/processed/dead-lettered state; `/health/live` and
   `/health/ready` support probes.
+- **Registry API** (`src/MetroMesh.Equipment.Registry`, port 8082) manages
+  stations and turnstile/camera equipment: registration with validation,
+  lifecycle transitions, station-close cascade, inventory queries, and
+  domain events published via outbox to `equipment.registry.v1`.
 
 ## Quickstart (local smoke)
 
@@ -51,6 +55,9 @@ curl -s http://localhost:8080/v1/events/evt_1 -H 'X-MetroMesh-Api-Key: dev-api-k
 | Consumer group | `Kafka__ConsumerGroup` | `telemetry-worker` |
 | API key | `MetroMesh__ApiKey` | required for `/v1/*` |
 | Max processing attempts | `Worker__MaxAttempts` | `3` |
+| Registry DB | `ConnectionStrings__RegistryDb` | required by registry service |
+| Registry topic | `Kafka__RegistryTopic` | `equipment.registry.v1` |
+| Registry outbox | `Outbox__Enabled` / `Outbox__PollIntervalMs` / `Outbox__BatchSize` | `true` / `1000` / `50` |
 
 ## Develop
 
@@ -66,4 +73,5 @@ xUnit + Testcontainers (Postgres/Redpanda) for integration coverage.
 ## Specs
 
 Feature specs and delivery-loop state live under `specs/`. See
-`specs/equipment-telemetry-backbone/` for the shipped backbone feature.
+`specs/equipment-telemetry-backbone/` and
+`specs/station-equipment-registry/` for the shipped features.
