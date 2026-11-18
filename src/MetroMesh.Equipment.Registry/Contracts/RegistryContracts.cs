@@ -22,6 +22,8 @@ public sealed record EquipmentRequest(
     int? MaintenanceThreshold,
     string? Status);
 
+public sealed record StationStatusUpdateRequest(string? Status);
+
 public sealed record EquipmentResponse(
     string Id,
     string Kind,

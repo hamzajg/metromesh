@@ -112,6 +112,69 @@ public class RegistryEndpointTests : IClassFixture<RegistryFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, invalidResponse.StatusCode);
     }
 
+    [Fact(DisplayName = "Station closure cascades to equipment decommission")]
+    public async Task Station_closure_cascades_to_equipment_decommission()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var stationId = await CreateStationAsync(client);
+        var equipmentId = await CreateEquipmentAsync(client, stationId, "turnstile");
+
+        using var patch = new HttpRequestMessage(HttpMethod.Patch, $"/v1/stations/{stationId}")
+        {
+            Content = JsonContent.Create(new { status = "closed" })
+        };
+        using var patchResponse = await client.SendAsync(patch);
+        Assert.Equal(HttpStatusCode.OK, patchResponse.StatusCode);
+
+        using var equipmentResponse = await client.GetAsync($"/v1/equipment/{equipmentId}");
+        Assert.Equal(HttpStatusCode.OK, equipmentResponse.StatusCode);
+        using var doc = JsonDocument.Parse(await equipmentResponse.Content.ReadAsStringAsync());
+        Assert.Equal("decommissioned", doc.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact(DisplayName = "Equipment status and station inventory are queryable")]
+    public async Task Equipment_status_and_station_inventory_are_queryable()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var stationId = await CreateStationAsync(client);
+        var eq1 = await CreateEquipmentAsync(client, stationId, "turnstile");
+        var eq2 = await CreateEquipmentAsync(client, stationId, "camera");
+
+        using var inventoryResponse = await client.GetAsync($"/v1/stations/{stationId}/equipment");
+        Assert.Equal(HttpStatusCode.OK, inventoryResponse.StatusCode);
+        using var inventoryDoc = JsonDocument.Parse(await inventoryResponse.Content.ReadAsStringAsync());
+        var items = inventoryDoc.RootElement.EnumerateArray().ToList();
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, e => e.GetProperty("id").GetString() == eq1);
+        Assert.Contains(items, e => e.GetProperty("id").GetString() == eq2);
+        Assert.All(items, e => Assert.Equal("active", e.GetProperty("status").GetString()));
+
+        using var decommission = await client.PostAsync($"/v1/equipment/{eq1}/decommission", null);
+        Assert.Equal(HttpStatusCode.OK, decommission.StatusCode);
+
+        using var equipmentResponse = await client.GetAsync($"/v1/equipment/{eq1}");
+        using var equipmentDoc = JsonDocument.Parse(await equipmentResponse.Content.ReadAsStringAsync());
+        Assert.Equal("decommissioned", equipmentDoc.RootElement.GetProperty("status").GetString());
+    }
+
+    private static async Task<string> CreateEquipmentAsync(HttpClient client, string stationId, string kind)
+    {
+        using var response = await client.PostAsJsonAsync("/v1/equipment", new
+        {
+            kind,
+            model = $"{kind}-1",
+            stationId,
+            status = "active"
+        });
+        response.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("id").GetString()!;
+    }
+
     private static async Task<string> CreateStationAsync(HttpClient client)
     {
         using var response = await client.PostAsJsonAsync("/v1/stations", new
