@@ -2,7 +2,7 @@
   "feature": "equipment-telemetry-backbone",
   "status": "running",
   "iterations": 4,
-  "updated": "2026-11-18T00:30:40Z",
+  "updated": "2026-11-18T00:33:32Z",
   "waves": {
     "1": {
       "status": "done",
@@ -19,11 +19,18 @@
       "updated": "2026-11-18T00:29:50Z"
     },
     "3": {
-      "status": "in-progress",
+      "status": "done",
       "branch": "feat/equipment-telemetry-backbone-w3",
+      "pr": "#5",
+      "evidence": "tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa",
+      "updated": "2026-11-18T00:33:18Z"
+    },
+    "4": {
+      "status": "in-progress",
+      "branch": "feat/equipment-telemetry-backbone-w4",
       "pr": "\u2014",
       "evidence": "\u2014",
-      "updated": "2026-11-18T00:30:17Z"
+      "updated": "2026-11-18T00:33:32Z"
     }
   },
   "gates": {
@@ -46,6 +53,8 @@
     "2026-11-18T00:23:04Z start wave 2 on feat/equipment-telemetry-backbone-w2",
     "2026-11-18T00:25:25Z complete wave 1 (#3): tests 3/3 passing via dotnet test --no-restore; no CI checks configured; PR #3 open to main",
     "2026-11-18T00:29:50Z complete wave 2 (#4): tests 5/5 passing via dotnet test --no-restore incl. Postgres+Redpanda Testcontainers; no CI checks configured; PR #4 op",
-    "2026-11-18T00:30:17Z start wave 3 on feat/equipment-telemetry-backbone-w3"
+    "2026-11-18T00:30:17Z start wave 3 on feat/equipment-telemetry-backbone-w3",
+    "2026-11-18T00:33:18Z complete wave 3 (#5): tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa",
+    "2026-11-18T00:33:32Z start wave 4 on feat/equipment-telemetry-backbone-w4"
   ]
 }

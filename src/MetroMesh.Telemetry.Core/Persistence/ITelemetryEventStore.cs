@@ -17,6 +17,10 @@ public interface ITelemetryEventStore
     Task MarkPublishFailedAsync(string eventId, string error, CancellationToken cancellationToken = default);
 
     Task<bool> TryMarkProcessedAsync(string eventId, CancellationToken cancellationToken = default);
+
+    Task<bool> RecordProcessingFailureAsync(string eventId, string error, int maxAttempts, CancellationToken cancellationToken = default);
+
+    Task<bool> PingAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed record StoredTelemetryEvent(

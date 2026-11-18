@@ -82,6 +82,27 @@ public sealed class FakeTelemetryEventStore : ITelemetryEventStore
         return Task.FromResult(false);
     }
 
+    public Task<bool> RecordProcessingFailureAsync(string eventId, string error, int maxAttempts, CancellationToken cancellationToken = default)
+    {
+        if (_entries.TryGetValue(eventId, out var entry)
+            && entry.DeadLetteredAt is null
+            && entry.Status is "accepted" or "published")
+        {
+            entry.Attempts++;
+            entry.LastError = error;
+            if (entry.Attempts >= maxAttempts)
+            {
+                entry.Status = "dead_lettered";
+                entry.DeadLetteredAt = DateTimeOffset.UtcNow;
+                return Task.FromResult(true);
+            }
+        }
+
+        return Task.FromResult(false);
+    }
+
+    public Task<bool> PingAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
     private sealed class Entry
     {
         public required string EventId { get; init; }

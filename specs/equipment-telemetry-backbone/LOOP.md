@@ -2,14 +2,14 @@
 
 Status: running
 Iterations: 4
-Updated: 2026-11-18T00:30:40Z
+Updated: 2026-11-18T00:33:32Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
 | 1 | done | feat/equipment-telemetry-backbone-w1 | #3 | tests 3/3 passing via dotnet test --no-restore; no CI checks configured; PR #3 open to main | 2026-11-18T00:25:25Z |
 | 2 | done | feat/equipment-telemetry-backbone-w2 | #4 | tests 5/5 passing via dotnet test --no-restore incl. Postgres+Redpanda Testcontainers; no CI checks configured; PR #4 op | 2026-11-18T00:29:50Z |
-| 3 | in-progress | feat/equipment-telemetry-backbone-w3 | — | — | 2026-11-18T00:30:17Z |
-| 4 | pending | — | — | — | — |
+| 3 | done | feat/equipment-telemetry-backbone-w3 | #5 | tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa | 2026-11-18T00:33:18Z |
+| 4 | in-progress | feat/equipment-telemetry-backbone-w4 | — | — | 2026-11-18T00:33:32Z |
 
 ## Gates
 
@@ -28,3 +28,5 @@ Updated: 2026-11-18T00:30:40Z
 - 2026-11-18T00:25:25Z complete wave 1 (#3): tests 3/3 passing via dotnet test --no-restore; no CI checks configured; PR #3 open to main
 - 2026-11-18T00:29:50Z complete wave 2 (#4): tests 5/5 passing via dotnet test --no-restore incl. Postgres+Redpanda Testcontainers; no CI checks configured; PR #4 op
 - 2026-11-18T00:30:17Z start wave 3 on feat/equipment-telemetry-backbone-w3
+- 2026-11-18T00:33:18Z complete wave 3 (#5): tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa
+- 2026-11-18T00:33:32Z start wave 4 on feat/equipment-telemetry-backbone-w4

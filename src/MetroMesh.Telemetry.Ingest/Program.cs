@@ -104,6 +104,27 @@ app.MapGet("/v1/events/{eventId}", async (
     .WithName("GetTelemetryEventStatus")
     .WithOpenApi();
 
+app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
+    .WithName("Liveness")
+    .WithOpenApi();
+
+app.MapGet("/health/ready", async (ITelemetryEventStore store, CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            var ready = await store.PingAsync(cancellationToken);
+            return ready
+                ? Results.Ok(new { status = "ready" })
+                : Results.Json(new { status = "not_ready" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch
+        {
+            return Results.Json(new { status = "not_ready" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    })
+    .WithName("Readiness")
+    .WithOpenApi();
+
 await app.Services.GetRequiredService<ITelemetryEventStore>().InitializeAsync();
 app.Run();
 

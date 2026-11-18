@@ -1,4 +1,5 @@
 using Confluent.Kafka;
+using MetroMesh.Telemetry.Core.Persistence;
 using MetroMesh.Telemetry.Worker.Services;
 
 namespace MetroMesh.Telemetry.Worker.Services;
@@ -6,17 +7,22 @@ namespace MetroMesh.Telemetry.Worker.Services;
 public sealed class TelemetryConsumerService : BackgroundService
 {
     private readonly TelemetryEventProcessor _processor;
+    private readonly ITelemetryEventStore _store;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TelemetryConsumerService> _logger;
+    private readonly int _maxAttempts;
 
     public TelemetryConsumerService(
         TelemetryEventProcessor processor,
+        ITelemetryEventStore store,
         IConfiguration configuration,
         ILogger<TelemetryConsumerService> logger)
     {
         _processor = processor;
+        _store = store;
         _configuration = configuration;
         _logger = logger;
+        _maxAttempts = int.TryParse(configuration["Worker:MaxAttempts"], out var maxAttempts) ? maxAttempts : 3;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,11 +78,41 @@ public sealed class TelemetryConsumerService : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(
-                        ex,
-                        "Failed to process telemetry message at offset {Offset} on topic {Topic}; offset will not be committed",
-                        result.Offset.Value,
-                        topic);
+                    var eventId = result.Message.Key ?? "unknown";
+                    var deadLettered = false;
+                    try
+                    {
+                        deadLettered = await _store.RecordProcessingFailureAsync(
+                            eventId,
+                            ex.Message,
+                            _maxAttempts,
+                            stoppingToken);
+                    }
+                    catch (Exception recordEx) when (recordEx is not OperationCanceledException)
+                    {
+                        _logger.LogError(recordEx, "Failed to record processing failure for telemetry event {EventId}", eventId);
+                    }
+
+                    if (deadLettered)
+                    {
+                        consumer.Commit(result);
+                        _logger.LogError(
+                            ex,
+                            "Telemetry event {EventId} dead-lettered after {MaxAttempts} attempts at offset {Offset} on topic {Topic}",
+                            eventId,
+                            _maxAttempts,
+                            result.Offset.Value,
+                            topic);
+                    }
+                    else
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to process telemetry event {EventId} at offset {Offset} on topic {Topic}; offset will not be committed",
+                            eventId,
+                            result.Offset.Value,
+                            topic);
+                    }
                 }
             }
         }
