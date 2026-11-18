@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MetroMesh.Telemetry.Ingest.Events;
-using MetroMesh.Telemetry.Ingest.Persistence;
+using MetroMesh.Telemetry.Core.Persistence;
 
 namespace MetroMesh.Telemetry.Ingest.Tests;
 

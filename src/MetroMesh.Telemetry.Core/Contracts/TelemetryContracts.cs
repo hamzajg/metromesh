@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace MetroMesh.Telemetry.Ingest.Contracts;
+namespace MetroMesh.Telemetry.Core.Contracts;
 
 public sealed record TelemetryEventRequest(
     string? SpecVersion,

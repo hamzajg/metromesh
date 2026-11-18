@@ -1,6 +1,6 @@
-using MetroMesh.Telemetry.Ingest.Contracts;
+using MetroMesh.Telemetry.Core.Contracts;
 
-namespace MetroMesh.Telemetry.Ingest.Persistence;
+namespace MetroMesh.Telemetry.Core.Persistence;
 
 public interface ITelemetryEventStore
 {
@@ -15,6 +15,8 @@ public interface ITelemetryEventStore
     Task MarkPublishedAsync(string eventId, CancellationToken cancellationToken = default);
 
     Task MarkPublishFailedAsync(string eventId, string error, CancellationToken cancellationToken = default);
+
+    Task<bool> TryMarkProcessedAsync(string eventId, CancellationToken cancellationToken = default);
 }
 
 public sealed record StoredTelemetryEvent(
