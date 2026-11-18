@@ -42,6 +42,8 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
                     CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
                 title text NOT NULL,
                 description text NULL,
+                assignee text NULL,
+                resolution text NULL,
                 status text NOT NULL DEFAULT 'open'
                     CHECK (status IN ('open', 'assigned', 'in_progress', 'completed', 'cancelled')),
                 created_at timestamptz NOT NULL DEFAULT now(),
@@ -52,6 +54,18 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
                 ON work_orders (equipment_id);
             CREATE INDEX IF NOT EXISTS ix_work_orders_status
                 ON work_orders (status);
+
+            CREATE TABLE IF NOT EXISTS work_order_history (
+                id text PRIMARY KEY,
+                work_order_id text NOT NULL REFERENCES work_orders (id),
+                from_status text NOT NULL,
+                to_status text NOT NULL,
+                note text NULL,
+                created_at timestamptz NOT NULL DEFAULT now()
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_work_order_history_order
+                ON work_order_history (work_order_id, created_at);
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -110,7 +124,7 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
         const string sql = """
             INSERT INTO work_orders (id, request_id, equipment_id, type, priority, title, description)
             VALUES (@id, @requestId, @equipmentId, @type, @priority, @title, @description)
-            RETURNING id, request_id, equipment_id, type, priority, title, description, status, created_at, updated_at;
+            RETURNING id, request_id, equipment_id, type, priority, title, description, assignee, resolution, status, created_at, updated_at;
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -131,7 +145,7 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
     public async Task<WorkOrderRecord?> GetWorkOrderAsync(string workOrderId, CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT id, request_id, equipment_id, type, priority, title, description, status, created_at, updated_at
+            SELECT id, request_id, equipment_id, type, priority, title, description, assignee, resolution, status, created_at, updated_at
             FROM work_orders WHERE id = @id;
             """;
 
@@ -141,6 +155,155 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? ReadWorkOrder(reader) : null;
+    }
+
+    public async Task<WorkOrderRecord?> TransitionWorkOrderAsync(string workOrderId, string toStatus, string? assignee, string? resolution, string? note, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        const string selectSql = """
+            SELECT status FROM work_orders WHERE id = @id FOR UPDATE;
+            """;
+        string? fromStatus;
+        await using (var select = new NpgsqlCommand(selectSql, connection, transaction))
+        {
+            select.Parameters.AddWithValue("id", workOrderId);
+            var result = await select.ExecuteScalarAsync(cancellationToken);
+            if (result is null)
+            {
+                return null;
+            }
+
+            fromStatus = (string)result;
+        }
+
+        const string updateSql = """
+            UPDATE work_orders
+            SET status = @toStatus,
+                assignee = COALESCE(@assignee, assignee),
+                resolution = COALESCE(@resolution, resolution),
+                updated_at = now()
+            WHERE id = @id
+            RETURNING id, request_id, equipment_id, type, priority, title, description, assignee, resolution, status, created_at, updated_at;
+            """;
+        WorkOrderRecord? updated;
+        await using (var update = new NpgsqlCommand(updateSql, connection, transaction))
+        {
+            update.Parameters.AddWithValue("id", workOrderId);
+            update.Parameters.AddWithValue("toStatus", toStatus);
+            update.Parameters.Add(new NpgsqlParameter("assignee", NpgsqlDbType.Text) { Value = (object?)assignee ?? DBNull.Value });
+            update.Parameters.Add(new NpgsqlParameter("resolution", NpgsqlDbType.Text) { Value = (object?)resolution ?? DBNull.Value });
+
+            await using var reader = await update.ExecuteReaderAsync(cancellationToken);
+            updated = await reader.ReadAsync(cancellationToken) ? ReadWorkOrder(reader) : null;
+        }
+
+        const string historySql = """
+            INSERT INTO work_order_history (id, work_order_id, from_status, to_status, note)
+            VALUES (@id, @workOrderId, @fromStatus, @toStatus, @note);
+            """;
+        await using (var history = new NpgsqlCommand(historySql, connection, transaction))
+        {
+            history.Parameters.AddWithValue("id", $"wh_{Guid.NewGuid():N}");
+            history.Parameters.AddWithValue("workOrderId", workOrderId);
+            history.Parameters.AddWithValue("fromStatus", fromStatus!);
+            history.Parameters.AddWithValue("toStatus", toStatus);
+            history.Parameters.Add(new NpgsqlParameter("note", NpgsqlDbType.Text) { Value = (object?)note ?? DBNull.Value });
+            await history.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return updated;
+    }
+
+    public async Task<IReadOnlyList<WorkOrderHistoryRecord>> ListWorkOrderHistoryAsync(string workOrderId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT id, work_order_id, from_status, to_status, note, created_at
+            FROM work_order_history
+            WHERE work_order_id = @workOrderId
+            ORDER BY created_at, id;
+            """;
+
+        var items = new List<WorkOrderHistoryRecord>();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("workOrderId", workOrderId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new WorkOrderHistoryRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.GetFieldValue<DateTimeOffset>(5)));
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<WorkOrderRecord>> ListWorkOrdersAsync(string? status, string? equipmentId, CancellationToken cancellationToken = default)
+    {
+        var sql = """
+            SELECT id, request_id, equipment_id, type, priority, title, description, assignee, resolution, status, created_at, updated_at
+            FROM work_orders
+            WHERE (@status IS NULL OR status = @status)
+              AND (@equipmentId IS NULL OR equipment_id = @equipmentId)
+            ORDER BY created_at DESC;
+            """;
+
+        var items = new List<WorkOrderRecord>();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.Add(new NpgsqlParameter("status", NpgsqlDbType.Text) { Value = (object?)status ?? DBNull.Value });
+        command.Parameters.Add(new NpgsqlParameter("equipmentId", NpgsqlDbType.Text) { Value = (object?)equipmentId ?? DBNull.Value });
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadWorkOrder(reader));
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<MaintenanceRequestRecord>> ListRequestsAsync(string? status, string? equipmentId, CancellationToken cancellationToken = default)
+    {
+        var sql = """
+            SELECT id, equipment_id, reason, severity, source, details, status, created_at
+            FROM maintenance_requests
+            WHERE (@status IS NULL OR status = @status)
+              AND (@equipmentId IS NULL OR equipment_id = @equipmentId)
+            ORDER BY created_at DESC;
+            """;
+
+        var items = new List<MaintenanceRequestRecord>();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.Add(new NpgsqlParameter("status", NpgsqlDbType.Text) { Value = (object?)status ?? DBNull.Value });
+        command.Parameters.Add(new NpgsqlParameter("equipmentId", NpgsqlDbType.Text) { Value = (object?)equipmentId ?? DBNull.Value });
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadRequest(reader));
+        }
+
+        return items;
+    }
+
+    public async Task UpdateRequestStatusAsync(string requestId, string status, CancellationToken cancellationToken = default)
+    {
+        const string sql = "UPDATE maintenance_requests SET status = @status WHERE id = @id;";
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", requestId);
+        command.Parameters.AddWithValue("status", status);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static MaintenanceRequestRecord ReadRequest(NpgsqlDataReader reader) => new(
@@ -161,7 +324,9 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
         reader.GetString(4),
         reader.GetString(5),
         reader.IsDBNull(6) ? null : reader.GetString(6),
-        reader.GetString(7),
-        reader.GetFieldValue<DateTimeOffset>(8),
-        reader.GetFieldValue<DateTimeOffset>(9));
+        reader.IsDBNull(7) ? null : reader.GetString(7),
+        reader.IsDBNull(8) ? null : reader.GetString(8),
+        reader.GetString(9),
+        reader.GetFieldValue<DateTimeOffset>(10),
+        reader.GetFieldValue<DateTimeOffset>(11));
 }

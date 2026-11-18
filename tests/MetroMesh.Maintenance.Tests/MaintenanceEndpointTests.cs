@@ -161,6 +161,132 @@ public sealed class MaintenanceEndpointTests : IClassFixture<MaintenanceFactory>
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact(DisplayName = "Work order lifecycle transitions are recorded")]
+    public async Task Work_order_lifecycle_transitions_are_recorded()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var create = await client.PostAsJsonAsync("/v1/work-orders", new
+        {
+            equipmentId = "eq_turnstile_1",
+            type = "repair",
+            priority = "high",
+            title = "Fix gate arm"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var createDoc = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var orderId = createDoc.RootElement.GetProperty("id").GetString();
+
+        var assign = await client.PostAsJsonAsync($"/v1/work-orders/{orderId}/assign", new { assignee = "tech-42" });
+        Assert.Equal(HttpStatusCode.OK, assign.StatusCode);
+        using var assignDoc = JsonDocument.Parse(await assign.Content.ReadAsStringAsync());
+        Assert.Equal("assigned", assignDoc.RootElement.GetProperty("status").GetString());
+        Assert.Equal("tech-42", assignDoc.RootElement.GetProperty("assignee").GetString());
+
+        var start = await client.PostAsync($"/v1/work-orders/{orderId}/start", null);
+        Assert.Equal(HttpStatusCode.OK, start.StatusCode);
+
+        var complete = await client.PostAsJsonAsync($"/v1/work-orders/{orderId}/complete", new { resolution = "Arm replaced" });
+        Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
+        using var completeDoc = JsonDocument.Parse(await complete.Content.ReadAsStringAsync());
+        Assert.Equal("completed", completeDoc.RootElement.GetProperty("status").GetString());
+        Assert.Equal("Arm replaced", completeDoc.RootElement.GetProperty("resolution").GetString());
+
+        var historyResponse = await client.GetAsync($"/v1/work-orders/{orderId}/history");
+        Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
+        using var historyDoc = JsonDocument.Parse(await historyResponse.Content.ReadAsStringAsync());
+        var entries = historyDoc.RootElement.EnumerateArray().ToList();
+        Assert.Equal(3, entries.Count);
+        Assert.Equal("open", entries[0].GetProperty("fromStatus").GetString());
+        Assert.Equal("assigned", entries[0].GetProperty("toStatus").GetString());
+        Assert.Equal("in_progress", entries[1].GetProperty("toStatus").GetString());
+        Assert.Equal("completed", entries[2].GetProperty("toStatus").GetString());
+    }
+
+    [Fact(DisplayName = "Invalid work order transition is rejected")]
+    public async Task Invalid_work_order_transition_is_rejected()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var create = await client.PostAsJsonAsync("/v1/work-orders", new
+        {
+            equipmentId = "eq_turnstile_1",
+            type = "repair",
+            priority = "low",
+            title = "Skip assign"
+        });
+        using var createDoc = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var orderId = createDoc.RootElement.GetProperty("id").GetString();
+
+        var start = await client.PostAsync($"/v1/work-orders/{orderId}/start", null);
+        Assert.Equal(HttpStatusCode.Conflict, start.StatusCode);
+    }
+
+    [Fact(DisplayName = "Maintenance status and history are queryable")]
+    public async Task Maintenance_status_and_history_are_queryable()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var requestResponse = await client.PostAsJsonAsync("/v1/maintenance-requests", new
+        {
+            equipmentId = "eq_turnstile_1",
+            reason = "Queryable request",
+            severity = "low"
+        });
+        Assert.Equal(HttpStatusCode.Created, requestResponse.StatusCode);
+
+        await client.PostAsJsonAsync("/v1/work-orders", new
+        {
+            equipmentId = "eq_camera_1",
+            type = "inspection",
+            priority = "low",
+            title = "Lens check"
+        });
+
+        var orders = await client.GetAsync("/v1/work-orders?status=open&equipmentId=eq_camera_1");
+        Assert.Equal(HttpStatusCode.OK, orders.StatusCode);
+        using var ordersDoc = JsonDocument.Parse(await orders.Content.ReadAsStringAsync());
+        Assert.True(ordersDoc.RootElement.GetArrayLength() >= 1);
+
+        var requests = await client.GetAsync("/v1/maintenance-requests?equipmentId=eq_turnstile_1");
+        Assert.Equal(HttpStatusCode.OK, requests.StatusCode);
+        using var requestsDoc = JsonDocument.Parse(await requests.Content.ReadAsStringAsync());
+        Assert.True(requestsDoc.RootElement.GetArrayLength() >= 1);
+    }
+
+    [Fact(DisplayName = "Creating work order converts linked request")]
+    public async Task Creating_work_order_converts_linked_request()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var requestResponse = await client.PostAsJsonAsync("/v1/maintenance-requests", new
+        {
+            equipmentId = "eq_turnstile_1",
+            reason = "Intermittent fault",
+            severity = "medium"
+        });
+        using var requestDoc = JsonDocument.Parse(await requestResponse.Content.ReadAsStringAsync());
+        var requestId = requestDoc.RootElement.GetProperty("id").GetString();
+
+        var orderResponse = await client.PostAsJsonAsync("/v1/work-orders", new
+        {
+            equipmentId = "eq_turnstile_1",
+            requestId,
+            type = "repair",
+            priority = "medium",
+            title = "Investigate fault"
+        });
+        Assert.Equal(HttpStatusCode.Created, orderResponse.StatusCode);
+
+        var getRequest = await client.GetAsync($"/v1/maintenance-requests/{requestId}");
+        using var getDoc = JsonDocument.Parse(await getRequest.Content.ReadAsStringAsync());
+        Assert.Equal("converted", getDoc.RootElement.GetProperty("status").GetString());
+    }
+
     [Fact(DisplayName = "Work against decommissioned equipment is rejected")]
     public async Task Work_against_decommissioned_equipment_is_rejected()
     {
