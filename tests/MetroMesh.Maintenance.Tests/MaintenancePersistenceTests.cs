@@ -65,4 +65,39 @@ public sealed class MaintenancePersistenceTests : IAsyncLifetime
         Assert.Null(await _store.GetWorkOrderAsync("wo_missing"));
         Assert.True(await _store.PingAsync());
     }
+
+    [Fact(DisplayName = "Work order transitions persist history atomically")]
+    public async Task Work_order_transitions_persist_history_atomically()
+    {
+        var order = await _store.InsertWorkOrderAsync(
+            null,
+            "eq_turnstile_1",
+            "inspection",
+            "low",
+            "Safety check",
+            null,
+            CancellationToken.None);
+
+        var assigned = await _store.TransitionWorkOrderAsync(order.Id, "assigned", "tech-7", null, null, CancellationToken.None);
+        Assert.NotNull(assigned);
+        Assert.Equal("assigned", assigned!.Status);
+        Assert.Equal("tech-7", assigned.Assignee);
+
+        var completed = await _store.TransitionWorkOrderAsync(order.Id, "completed", null, "All clear", null, CancellationToken.None);
+        Assert.Equal("completed", completed!.Status);
+        Assert.Equal("All clear", completed.Resolution);
+
+        var history = await _store.ListWorkOrderHistoryAsync(order.Id);
+        Assert.Equal(2, history.Count);
+        Assert.Equal("open", history[0].FromStatus);
+        Assert.Equal("assigned", history[0].ToStatus);
+        Assert.Equal("assigned", history[1].FromStatus);
+        Assert.Equal("completed", history[1].ToStatus);
+
+        var open = await _store.ListWorkOrdersAsync("open", null);
+        Assert.DoesNotContain(open, w => w.Id == order.Id);
+
+        var byEquipment = await _store.ListWorkOrdersAsync(null, "eq_turnstile_1");
+        Assert.Contains(byEquipment, w => w.Id == order.Id);
+    }
 }

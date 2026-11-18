@@ -8,6 +8,7 @@ public sealed class FakeMaintenanceStore : IMaintenanceStore
 {
     private readonly ConcurrentDictionary<string, MaintenanceRequestRecord> _requests = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, WorkOrderRecord> _workOrders = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, List<WorkOrderHistoryRecord>> _history = new(StringComparer.Ordinal);
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -42,6 +43,8 @@ public sealed class FakeMaintenanceStore : IMaintenanceStore
             priority.ToLowerInvariant(),
             title,
             description,
+            null,
+            null,
             "open",
             now,
             now);
@@ -51,6 +54,64 @@ public sealed class FakeMaintenanceStore : IMaintenanceStore
 
     public Task<WorkOrderRecord?> GetWorkOrderAsync(string workOrderId, CancellationToken cancellationToken = default)
         => Task.FromResult(_workOrders.TryGetValue(workOrderId, out var record) ? record : null);
+
+    public Task<WorkOrderRecord?> TransitionWorkOrderAsync(string workOrderId, string toStatus, string? assignee, string? resolution, string? note, CancellationToken cancellationToken = default)
+    {
+        if (!_workOrders.TryGetValue(workOrderId, out var current))
+        {
+            return Task.FromResult<WorkOrderRecord?>(null);
+        }
+
+        var updated = current with
+        {
+            Status = toStatus,
+            Assignee = assignee ?? current.Assignee,
+            Resolution = resolution ?? current.Resolution,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        _workOrders[workOrderId] = updated;
+
+        var entries = _history.GetOrAdd(workOrderId, _ => new List<WorkOrderHistoryRecord>());
+        entries.Add(new WorkOrderHistoryRecord(
+            $"wh_{Guid.NewGuid():N}",
+            workOrderId,
+            current.Status,
+            toStatus,
+            note,
+            DateTimeOffset.UtcNow));
+
+        return Task.FromResult<WorkOrderRecord?>(updated);
+    }
+
+    public Task<IReadOnlyList<WorkOrderHistoryRecord>> ListWorkOrderHistoryAsync(string workOrderId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<WorkOrderHistoryRecord>>(
+            _history.TryGetValue(workOrderId, out var entries) ? entries.ToList() : new List<WorkOrderHistoryRecord>());
+
+    public Task<IReadOnlyList<WorkOrderRecord>> ListWorkOrdersAsync(string? status, string? equipmentId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<WorkOrderRecord>>(
+            _workOrders.Values
+                .Where(w => status is null || w.Status == status)
+                .Where(w => equipmentId is null || w.EquipmentId == equipmentId)
+                .OrderByDescending(w => w.CreatedAt)
+                .ToList());
+
+    public Task<IReadOnlyList<MaintenanceRequestRecord>> ListRequestsAsync(string? status, string? equipmentId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<MaintenanceRequestRecord>>(
+            _requests.Values
+                .Where(r => status is null || r.Status == status)
+                .Where(r => equipmentId is null || r.EquipmentId == equipmentId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList());
+
+    public Task UpdateRequestStatusAsync(string requestId, string status, CancellationToken cancellationToken = default)
+    {
+        if (_requests.TryGetValue(requestId, out var record))
+        {
+            _requests[requestId] = record with { Status = status };
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class FakeEquipmentDirectory : IEquipmentDirectory
