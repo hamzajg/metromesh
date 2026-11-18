@@ -1,8 +1,8 @@
 # Delivery Loop — equipment-telemetry-backbone
 
-Status: running
+Status: done
 Iterations: 4
-Updated: 2026-11-18T00:35:01Z
+Updated: 2026-11-18T00:39:30Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -31,3 +31,4 @@ Updated: 2026-11-18T00:35:01Z
 - 2026-11-18T00:33:18Z complete wave 3 (#5): tests 7/7 passing via dotnet test --no-build (Worker 2/2, Ingest 5/5); no CI checks configured; PR #5 open stacked on wa
 - 2026-11-18T00:33:32Z start wave 4 on feat/equipment-telemetry-backbone-w4
 - 2026-11-18T00:35:01Z complete wave 4 (#6): tests 9/9 passing via dotnet test --no-build (Ingest 6/6, Worker 3/3); dead-letter verified on real Postgres Testcontain
+- 2026-11-18T00:39:30Z feature validated and shipped
