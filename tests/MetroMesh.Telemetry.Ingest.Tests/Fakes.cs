@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using MetroMesh.Telemetry.Core.Contracts;
+using MetroMesh.Telemetry.Core.Events;
 using MetroMesh.Telemetry.Core.Persistence;
-using MetroMesh.Telemetry.Ingest.Events;
 
 namespace MetroMesh.Telemetry.Ingest.Tests;
 

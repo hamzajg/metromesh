@@ -1,4 +1,4 @@
-namespace MetroMesh.Telemetry.Ingest.Events;
+namespace MetroMesh.Telemetry.Core.Events;
 
 public interface IEventBus
 {

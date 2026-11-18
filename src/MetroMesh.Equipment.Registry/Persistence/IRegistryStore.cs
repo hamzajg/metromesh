@@ -19,7 +19,22 @@ public interface IRegistryStore
     Task<EquipmentRecord?> UpdateEquipmentStatusAsync(string equipmentId, string status, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<EquipmentRecord>> ListEquipmentByStationAsync(string stationId, CancellationToken cancellationToken = default);
+
+    Task InsertOutboxEventAsync(string eventType, string aggregateId, string envelopeJson, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OutboxRecord>> GetUnpublishedOutboxAsync(int batchSize, CancellationToken cancellationToken = default);
+
+    Task MarkOutboxPublishedAsync(string outboxId, CancellationToken cancellationToken = default);
+
+    Task MarkOutboxFailedAsync(string outboxId, string error, CancellationToken cancellationToken = default);
 }
+
+public sealed record OutboxRecord(
+    string Id,
+    string EventType,
+    string AggregateId,
+    string EnvelopeJson,
+    int Attempts);
 
 public sealed record StationRecord(
     string Id,
