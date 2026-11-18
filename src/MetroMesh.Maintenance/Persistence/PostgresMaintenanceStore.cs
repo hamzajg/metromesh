@@ -66,6 +66,21 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
 
             CREATE INDEX IF NOT EXISTS ix_work_order_history_order
                 ON work_order_history (work_order_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS maintenance_outbox (
+                id text PRIMARY KEY,
+                event_type text NOT NULL,
+                aggregate_id text NOT NULL,
+                envelope_json jsonb NOT NULL,
+                published_at timestamptz NULL,
+                attempts integer NOT NULL DEFAULT 0,
+                last_error text NULL,
+                created_at timestamptz NOT NULL DEFAULT now()
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_maintenance_outbox_pending
+                ON maintenance_outbox (created_at)
+                WHERE published_at IS NULL;
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -303,6 +318,76 @@ public sealed class PostgresMaintenanceStore : IMaintenanceStore
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", requestId);
         command.Parameters.AddWithValue("status", status);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task InsertOutboxEventAsync(string eventType, string aggregateId, string envelopeJson, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            INSERT INTO maintenance_outbox (id, event_type, aggregate_id, envelope_json)
+            VALUES (@id, @eventType, @aggregateId, @envelopeJson::jsonb);
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", $"out_{Guid.NewGuid():N}");
+        command.Parameters.AddWithValue("eventType", eventType);
+        command.Parameters.AddWithValue("aggregateId", aggregateId);
+        command.Parameters.Add(new NpgsqlParameter("envelopeJson", NpgsqlDbType.Jsonb) { Value = envelopeJson });
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OutboxRecord>> GetUnpublishedOutboxAsync(int batchSize, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT id, event_type, aggregate_id, envelope_json::text, attempts
+            FROM maintenance_outbox
+            WHERE published_at IS NULL
+            ORDER BY created_at
+            LIMIT @batchSize;
+            """;
+
+        var items = new List<OutboxRecord>();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("batchSize", batchSize);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new OutboxRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetInt32(4)));
+        }
+
+        return items;
+    }
+
+    public async Task MarkOutboxPublishedAsync(string outboxId, CancellationToken cancellationToken = default)
+    {
+        const string sql = "UPDATE maintenance_outbox SET published_at = now() WHERE id = @id;";
+        await ExecuteSimpleAsync(sql, outboxId, null, cancellationToken);
+    }
+
+    public async Task MarkOutboxFailedAsync(string outboxId, string error, CancellationToken cancellationToken = default)
+    {
+        const string sql = "UPDATE maintenance_outbox SET attempts = attempts + 1, last_error = @error WHERE id = @id;";
+        await ExecuteSimpleAsync(sql, outboxId, error, cancellationToken);
+    }
+
+    private async Task ExecuteSimpleAsync(string sql, string id, string? error, CancellationToken cancellationToken)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", id);
+        if (error is not null)
+        {
+            command.Parameters.AddWithValue("error", error);
+        }
+
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
