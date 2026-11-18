@@ -1,8 +1,8 @@
 # Delivery Loop — station-equipment-registry
 
-Status: running
+Status: done
 Iterations: 1
-Updated: 2026-11-18T01:12:24Z
+Updated: 2026-11-18T01:30:03Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -25,3 +25,4 @@ Updated: 2026-11-18T01:12:24Z
 - 2026-11-18T01:08:58Z complete wave 2 (#11): tests 18/18 passing via dotnet test --no-build (Registry 8/8); evidence bundle rendered+verified; no CI; PR #11 open sta
 - 2026-11-18T01:09:10Z start wave 3 on feat/station-equipment-registry-w3
 - 2026-11-18T01:12:24Z complete wave 3 (#12): tests 21/21 (Registry 11/11, Worker 4/4, Ingest 6/6; real Postgres+Redpanda outbox publish/consume), no CI checks config
+- 2026-11-18T01:30:03Z feature validated and shipped
