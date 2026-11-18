@@ -1,0 +1,17 @@
+{
+  "feature": "station-equipment-registry",
+  "status": "running",
+  "iterations": 1,
+  "updated": "2026-11-18T00:44:48Z",
+  "waves": {},
+  "gates": {
+    "G1": {
+      "status": "met",
+      "evidence": "file:specs/station-equipment-registry/DECISION-REVIEW.md \u2014 verdict ACCEPT",
+      "updated": "2026-11-18T00:44:42Z"
+    }
+  },
+  "events": [
+    "2026-11-18T00:44:42Z gate G1 met: file:specs/station-equipment-registry/DECISION-REVIEW.md \u2014 verdict ACCEPT"
+  ]
+}
