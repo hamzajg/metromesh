@@ -4,7 +4,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using MetroMesh.Telemetry.Ingest.Events;
+using MetroMesh.Telemetry.Ingest.Persistence;
 
 namespace MetroMesh.Telemetry.Ingest.Tests;
 
@@ -115,8 +120,17 @@ public sealed class MetroMeshFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["MetroMesh:ApiKey"] = "test-api-key"
+                ["MetroMesh:ApiKey"] = "test-api-key",
+                ["Outbox:Enabled"] = "false"
             });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ITelemetryEventStore>();
+            services.RemoveAll<IEventBus>();
+            services.AddSingleton<ITelemetryEventStore>(new FakeTelemetryEventStore());
+            services.AddSingleton<IEventBus>(new FakeEventBus());
         });
     }
 }
