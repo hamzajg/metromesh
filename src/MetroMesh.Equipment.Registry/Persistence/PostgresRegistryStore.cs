@@ -23,7 +23,7 @@ public sealed class PostgresRegistryStore : IRegistryStore
             install_date date NULL,
             maintenance_threshold integer NULL,
             status text NOT NULL DEFAULT 'active'
-                CHECK (status IN ('active', 'inactive')),
+                CHECK (status IN ('active', 'inactive', 'decommissioned')),
             created_at timestamptz NOT NULL DEFAULT now()
         );
 
@@ -133,6 +133,80 @@ public sealed class PostgresRegistryStore : IRegistryStore
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? ReadEquipment(reader) : null;
+    }
+
+    public async Task<StationRecord?> UpdateStationStatusAsync(string stationId, string status, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE registry_stations
+            SET status = @status
+            WHERE id = @id
+            RETURNING id, name, address, status, location, created_at;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", stationId);
+        command.Parameters.AddWithValue("status", status);
+
+        StationRecord? station;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            station = await reader.ReadAsync(cancellationToken) ? ReadStation(reader) : null;
+        }
+
+        if (station is not null && status == "closed")
+        {
+            const string cascade = """
+                UPDATE registry_equipment
+                SET status = 'decommissioned'
+                WHERE station_id = @id AND status = 'active';
+                """;
+            await using var cascadeCommand = new NpgsqlCommand(cascade, connection);
+            cascadeCommand.Parameters.AddWithValue("id", stationId);
+            await cascadeCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return station;
+    }
+
+    public async Task<EquipmentRecord?> UpdateEquipmentStatusAsync(string equipmentId, string status, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE registry_equipment
+            SET status = @status
+            WHERE id = @id
+            RETURNING id, kind, model, station_id, install_date, maintenance_threshold, status, created_at;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", equipmentId);
+        command.Parameters.AddWithValue("status", status);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadEquipment(reader) : null;
+    }
+
+    public async Task<IReadOnlyList<EquipmentRecord>> ListEquipmentByStationAsync(string stationId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT id, kind, model, station_id, install_date, maintenance_threshold, status, created_at
+            FROM registry_equipment WHERE station_id = @id ORDER BY created_at;
+            """;
+
+        var items = new List<EquipmentRecord>();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", stationId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadEquipment(reader));
+        }
+
+        return items;
     }
 
     private static StationRecord ReadStation(NpgsqlDataReader reader) => new(

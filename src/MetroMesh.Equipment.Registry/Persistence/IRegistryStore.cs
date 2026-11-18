@@ -13,6 +13,12 @@ public interface IRegistryStore
     Task<EquipmentRecord?> InsertEquipmentAsync(string kind, string model, string stationId, DateOnly? installDate, int? maintenanceThreshold, string status, CancellationToken cancellationToken = default);
 
     Task<EquipmentRecord?> GetEquipmentAsync(string equipmentId, CancellationToken cancellationToken = default);
+
+    Task<StationRecord?> UpdateStationStatusAsync(string stationId, string status, CancellationToken cancellationToken = default);
+
+    Task<EquipmentRecord?> UpdateEquipmentStatusAsync(string equipmentId, string status, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<EquipmentRecord>> ListEquipmentByStationAsync(string stationId, CancellationToken cancellationToken = default);
 }
 
 public sealed record StationRecord(

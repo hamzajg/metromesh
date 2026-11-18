@@ -52,4 +52,44 @@ public sealed class FakeRegistryStore : IRegistryStore
 
     public Task<EquipmentRecord?> GetEquipmentAsync(string equipmentId, CancellationToken cancellationToken = default)
         => Task.FromResult(_equipment.TryGetValue(equipmentId, out var e) ? e : null);
+
+    public Task<StationRecord?> UpdateStationStatusAsync(string stationId, string status, CancellationToken cancellationToken = default)
+    {
+        if (!_stations.TryGetValue(stationId, out var station))
+        {
+            return Task.FromResult<StationRecord?>(null);
+        }
+
+        var updated = station with { Status = status };
+        _stations[stationId] = updated;
+
+        if (status == "closed")
+        {
+            foreach (var (id, eq) in _equipment)
+            {
+                if (eq.StationId == stationId && eq.Status == "active")
+                {
+                    _equipment[id] = eq with { Status = "decommissioned" };
+                }
+            }
+        }
+
+        return Task.FromResult<StationRecord?>(updated);
+    }
+
+    public Task<EquipmentRecord?> UpdateEquipmentStatusAsync(string equipmentId, string status, CancellationToken cancellationToken = default)
+    {
+        if (!_equipment.TryGetValue(equipmentId, out var equipment))
+        {
+            return Task.FromResult<EquipmentRecord?>(null);
+        }
+
+        var updated = equipment with { Status = status };
+        _equipment[equipmentId] = updated;
+        return Task.FromResult<EquipmentRecord?>(updated);
+    }
+
+    public Task<IReadOnlyList<EquipmentRecord>> ListEquipmentByStationAsync(string stationId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<EquipmentRecord>>(
+            _equipment.Values.Where(e => e.StationId == stationId).OrderBy(e => e.CreatedAt).ToList());
 }

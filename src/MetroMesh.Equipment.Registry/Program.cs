@@ -162,6 +162,86 @@ app.MapGet("/v1/equipment/{equipmentId}", async (
     .WithName("GetEquipment")
     .WithOpenApi();
 
+app.MapPatch("/v1/stations/{stationId}", async (
+        string stationId,
+        StationStatusUpdateRequest? request,
+        HttpContext httpContext,
+        IRegistryStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
+        var errors = RegistryValidator.ValidateStationStatusUpdate(request?.Status);
+
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(
+                errors,
+                detail: "The station status update is invalid.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid station status",
+                extensions: new Dictionary<string, object?> { ["correlationId"] = correlationId });
+        }
+
+        var station = await store.UpdateStationStatusAsync(stationId, request!.Status!, cancellationToken);
+        return station is null
+            ? Results.NotFound()
+            : Results.Ok(new StationResponse(
+                station.Id,
+                station.Name,
+                station.Address,
+                station.Status,
+                station.Location,
+                station.CreatedAt));
+    })
+    .WithName("UpdateStationStatus")
+    .WithOpenApi();
+
+app.MapGet("/v1/stations/{stationId}/equipment", async (
+        string stationId,
+        IRegistryStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var station = await store.GetStationAsync(stationId, cancellationToken);
+        if (station is null)
+        {
+            return Results.NotFound();
+        }
+
+        var items = await store.ListEquipmentByStationAsync(stationId, cancellationToken);
+        return Results.Ok(items.Select(e => new EquipmentResponse(
+            e.Id,
+            e.Kind,
+            e.Model,
+            e.StationId,
+            e.InstallDate,
+            e.MaintenanceThreshold,
+            e.Status,
+            e.CreatedAt)).ToList());
+    })
+    .WithName("ListStationEquipment")
+    .WithOpenApi();
+
+app.MapPost("/v1/equipment/{equipmentId}/decommission", async (
+        string equipmentId,
+        IRegistryStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var equipment = await store.UpdateEquipmentStatusAsync(equipmentId, "decommissioned", cancellationToken);
+        return equipment is null
+            ? Results.NotFound()
+            : Results.Ok(new EquipmentResponse(
+                equipment.Id,
+                equipment.Kind,
+                equipment.Model,
+                equipment.StationId,
+                equipment.InstallDate,
+                equipment.MaintenanceThreshold,
+                equipment.Status,
+                equipment.CreatedAt));
+    })
+    .WithName("DecommissionEquipment")
+    .WithOpenApi();
+
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
     .WithName("Liveness")
     .WithOpenApi();

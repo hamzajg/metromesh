@@ -35,6 +35,17 @@ public static class RegistryValidator
         return errors;
     }
 
+    public static IDictionary<string, string[]> ValidateStationStatusUpdate(string? status)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (status is null || !StationStatuses.Contains(status))
+        {
+            errors["status"] = ["Status must be one of: open, closed, offline."];
+        }
+
+        return errors;
+    }
+
     public static IDictionary<string, string[]> ValidateEquipment(EquipmentRequest? request)
     {
         var errors = new Dictionary<string, string[]>();
