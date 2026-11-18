@@ -1,7 +1,9 @@
 using MetroMesh.Equipment.Registry.Contracts;
+using MetroMesh.Equipment.Registry.Events;
 using MetroMesh.Equipment.Registry.Middleware;
 using MetroMesh.Equipment.Registry.Persistence;
 using MetroMesh.Equipment.Registry.Validation;
+using MetroMesh.Telemetry.Core.Events;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +24,9 @@ builder.Services.AddSingleton(_ =>
     return NpgsqlDataSource.Create(connectionString);
 });
 builder.Services.AddSingleton<IRegistryStore, PostgresRegistryStore>();
+builder.Services.AddSingleton<IEventBus, ConfluentKafkaEventBus>();
+builder.Services.AddSingleton<IOutboxPublisher, KafkaOutboxPublisher>();
+builder.Services.AddHostedService<OutboxPublisherService>();
 
 var app = builder.Build();
 
@@ -59,6 +64,14 @@ app.MapPost("/v1/stations", async (
             request.Status ?? "open",
             request.Location,
             cancellationToken);
+
+        await RegistryEvents.EmitAsync(store, "station.created", station.Id, new
+        {
+            station.Name,
+            station.Address,
+            station.Status,
+            station.Location
+        }, cancellationToken);
 
         return Results.Created($"/v1/stations/{station.Id}", new StationResponse(
             station.Id,
@@ -128,6 +141,14 @@ app.MapPost("/v1/equipment", async (
                 extensions: new Dictionary<string, object?> { ["correlationId"] = correlationId });
         }
 
+        await RegistryEvents.EmitAsync(store, $"equipment.{equipment.Kind}.installed", equipment.Id, new
+        {
+            equipment.Kind,
+            equipment.Model,
+            equipment.StationId,
+            equipment.Status
+        }, cancellationToken);
+
         return Results.Created($"/v1/equipment/{equipment.Id}", new EquipmentResponse(
             equipment.Id,
             equipment.Kind,
@@ -183,6 +204,14 @@ app.MapPatch("/v1/stations/{stationId}", async (
         }
 
         var station = await store.UpdateStationStatusAsync(stationId, request!.Status!, cancellationToken);
+        if (station is not null)
+        {
+            await RegistryEvents.EmitAsync(store, "station.status.changed", station.Id, new
+            {
+                station.Status
+            }, cancellationToken);
+        }
+
         return station is null
             ? Results.NotFound()
             : Results.Ok(new StationResponse(
@@ -227,6 +256,16 @@ app.MapPost("/v1/equipment/{equipmentId}/decommission", async (
         CancellationToken cancellationToken) =>
     {
         var equipment = await store.UpdateEquipmentStatusAsync(equipmentId, "decommissioned", cancellationToken);
+        if (equipment is not null)
+        {
+            await RegistryEvents.EmitAsync(store, $"equipment.{equipment.Kind}.decommissioned", equipment.Id, new
+            {
+                equipment.Kind,
+                equipment.StationId,
+                equipment.Status
+            }, cancellationToken);
+        }
+
         return equipment is null
             ? Results.NotFound()
             : Results.Ok(new EquipmentResponse(

@@ -8,8 +8,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using MetroMesh.Telemetry.Ingest.Events;
+using MetroMesh.Telemetry.Core.Events;
 using MetroMesh.Telemetry.Core.Persistence;
+using MetroMesh.Telemetry.Ingest.Events;
 
 namespace MetroMesh.Telemetry.Ingest.Tests;
 

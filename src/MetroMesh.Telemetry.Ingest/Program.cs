@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MetroMesh.Telemetry.Core.Contracts;
+using MetroMesh.Telemetry.Core.Events;
 using MetroMesh.Telemetry.Core.Persistence;
 using MetroMesh.Telemetry.Ingest.Events;
 using MetroMesh.Telemetry.Ingest.Middleware;

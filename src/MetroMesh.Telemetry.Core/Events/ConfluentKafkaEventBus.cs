@@ -1,6 +1,7 @@
 using Confluent.Kafka;
+using Microsoft.Extensions.Configuration;
 
-namespace MetroMesh.Telemetry.Ingest.Events;
+namespace MetroMesh.Telemetry.Core.Events;
 
 public sealed class ConfluentKafkaEventBus : IEventBus, IDisposable
 {

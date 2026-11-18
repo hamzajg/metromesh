@@ -7,6 +7,9 @@ public sealed class FakeRegistryStore : IRegistryStore
 {
     private readonly ConcurrentDictionary<string, StationRecord> _stations = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, EquipmentRecord> _equipment = new(StringComparer.Ordinal);
+    private readonly List<OutboxRecord> _outbox = [];
+
+    public IReadOnlyList<OutboxRecord> PendingOutbox => _outbox.Where(o => o.Attempts >= 0).ToList();
 
     public bool PingOk { get; set; } = true;
 
@@ -92,4 +95,31 @@ public sealed class FakeRegistryStore : IRegistryStore
     public Task<IReadOnlyList<EquipmentRecord>> ListEquipmentByStationAsync(string stationId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<EquipmentRecord>>(
             _equipment.Values.Where(e => e.StationId == stationId).OrderBy(e => e.CreatedAt).ToList());
+
+    public Task InsertOutboxEventAsync(string eventType, string aggregateId, string envelopeJson, CancellationToken cancellationToken = default)
+    {
+        _outbox.Add(new OutboxRecord($"out_{Guid.NewGuid():N}", eventType, aggregateId, envelopeJson, 0));
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<OutboxRecord>> GetUnpublishedOutboxAsync(int batchSize, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<OutboxRecord>>(_outbox.Take(batchSize).ToList());
+
+    public Task MarkOutboxPublishedAsync(string outboxId, CancellationToken cancellationToken = default)
+    {
+        _outbox.RemoveAll(o => o.Id == outboxId);
+        return Task.CompletedTask;
+    }
+
+    public Task MarkOutboxFailedAsync(string outboxId, string error, CancellationToken cancellationToken = default)
+    {
+        var index = _outbox.FindIndex(o => o.Id == outboxId);
+        if (index >= 0)
+        {
+            var o = _outbox[index];
+            _outbox[index] = o with { Attempts = o.Attempts + 1 };
+        }
+
+        return Task.CompletedTask;
+    }
 }

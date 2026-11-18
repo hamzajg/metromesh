@@ -161,6 +161,38 @@ public class RegistryEndpointTests : IClassFixture<RegistryFactory>
         Assert.Equal("decommissioned", equipmentDoc.RootElement.GetProperty("status").GetString());
     }
 
+    [Fact(DisplayName = "Registry mutation emits a domain event")]
+    public async Task Registry_mutation_emits_a_domain_event()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", "test-api-key");
+
+        var before = RegistryFactory.Store.PendingOutbox.Count;
+        var stationId = await CreateStationAsync(client);
+
+        var pending = RegistryFactory.Store.PendingOutbox;
+        Assert.True(pending.Count > before, "expected a new outbox event after station registration");
+        var evt = pending.Last();
+        Assert.Equal("station.created", evt.EventType);
+        Assert.Equal(stationId, evt.AggregateId);
+        Assert.Contains("station.created", evt.EnvelopeJson);
+    }
+
+    [Fact(DisplayName = "Registry service reports health in compose stack")]
+    public async Task Registry_service_reports_health_in_compose_stack()
+    {
+        using var client = _factory.CreateClient();
+
+        using var liveResponse = await client.GetAsync("/health/live");
+        Assert.Equal(HttpStatusCode.OK, liveResponse.StatusCode);
+
+        using var readyResponse = await client.GetAsync("/health/ready");
+        Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+
+        using var doc = JsonDocument.Parse(await readyResponse.Content.ReadAsStringAsync());
+        Assert.Equal("ready", doc.RootElement.GetProperty("status").GetString());
+    }
+
     private static async Task<string> CreateEquipmentAsync(HttpClient client, string stationId, string kind)
     {
         using var response = await client.PostAsJsonAsync("/v1/equipment", new
@@ -191,6 +223,8 @@ public class RegistryEndpointTests : IClassFixture<RegistryFactory>
 
 public sealed class RegistryFactory : WebApplicationFactory<Program>
 {
+    public static readonly FakeRegistryStore Store = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, config) =>
@@ -204,7 +238,7 @@ public sealed class RegistryFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IRegistryStore>();
-            services.AddSingleton<IRegistryStore>(new FakeRegistryStore());
+            services.AddSingleton<IRegistryStore>(Store);
         });
     }
 }

@@ -1,3 +1,4 @@
+using MetroMesh.Telemetry.Core.Events;
 using MetroMesh.Telemetry.Core.Persistence;
 
 namespace MetroMesh.Telemetry.Ingest.Events;
