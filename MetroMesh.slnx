@@ -1,12 +1,14 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MetroMesh.Equipment.Registry/MetroMesh.Equipment.Registry.csproj" />
+    <Project Path="src/MetroMesh.Maintenance/MetroMesh.Maintenance.csproj" />
     <Project Path="src/MetroMesh.Telemetry.Core/MetroMesh.Telemetry.Core.csproj" />
     <Project Path="src/MetroMesh.Telemetry.Ingest/MetroMesh.Telemetry.Ingest.csproj" />
     <Project Path="src/MetroMesh.Telemetry.Worker/MetroMesh.Telemetry.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MetroMesh.Equipment.Registry.Tests/MetroMesh.Equipment.Registry.Tests.csproj" />
+    <Project Path="tests/MetroMesh.Maintenance.Tests/MetroMesh.Maintenance.Tests.csproj" />
     <Project Path="tests/MetroMesh.Telemetry.Ingest.Tests/MetroMesh.Telemetry.Ingest.Tests.csproj" />
     <Project Path="tests/MetroMesh.Telemetry.Worker.Tests/MetroMesh.Telemetry.Worker.Tests.csproj" />
   </Folder>
