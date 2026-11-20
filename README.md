@@ -25,6 +25,12 @@ MetroMesh transit operations platform — event-driven equipment telemetry backb
   assign/start/complete/cancel lifecycle, transactional history, equipment
   validation against the registry, and domain events via outbox to
   `maintenance.workorder.v1`.
+- **Analytics** (`src/MetroMesh.Analytics`, port 8084) consumes
+  `equipment.telemetry.v1` in its own `analytics-worker` consumer group,
+  writing ridership readings to PostgreSQL with idempotent processed-marking
+  (redelivery cannot double-count); exposes `GET /v1/ridership/counts` and
+  `GET /v1/ridership/series` with API-key auth, plus `/health/live` and
+  `/health/ready`.
 
 ## Quickstart (local smoke)
 
@@ -64,6 +70,7 @@ curl -s http://localhost:8080/v1/events/evt_1 -H 'X-MetroMesh-Api-Key: dev-api-k
 | Registry topic | `Kafka__RegistryTopic` | `equipment.registry.v1` |
 | Registry outbox | `Outbox__Enabled` / `Outbox__PollIntervalMs` / `Outbox__BatchSize` | `true` / `1000` / `50` |
 | Maintenance DB | `ConnectionStrings__MaintenanceDb` | required by maintenance service |
+| Analytics DB | `ConnectionStrings__AnalyticsDb` or `METROMESH_DB` | required by analytics service |
 | Maintenance topic | `Kafka__MaintenanceTopic` | `maintenance.workorder.v1` |
 | Registry endpoint (for maintenance) | `Maintenance__Registry__BaseUrl` / `Maintenance__Registry__ApiKey` | `http://localhost:8082` / `MetroMesh__ApiKey` |
 
@@ -82,4 +89,5 @@ xUnit + Testcontainers (Postgres/Redpanda) for integration coverage.
 
 Feature specs and delivery-loop state live under `specs/`. See
 `specs/equipment-telemetry-backbone/`, `specs/station-equipment-registry/`,
-and `specs/maintenance-operations/` for the shipped features.
+`specs/maintenance-operations/`, and `specs/ridership-analytics/` for the
+shipped features.
