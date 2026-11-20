@@ -25,7 +25,7 @@ public sealed class IdentificationEventPublisher : IAsyncDisposable
         _logger = logger;
     }
 
-    public async Task PublishInteractionCreatedAsync(CustomerStationInteraction interaction, CancellationToken cancellationToken = default)
+    public async Task PublishInteractionCreatedAsync(CustomerStationInteraction interaction, string? correlationId = null, string? causationId = null, CancellationToken cancellationToken = default)
     {
         var envelope = new
         {
@@ -36,6 +36,8 @@ public sealed class IdentificationEventPublisher : IAsyncDisposable
             subject = $"station/{interaction.StationId}",
             time = interaction.OccurredAt,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data = new
             {
                 interactionId = interaction.Id,
@@ -61,7 +63,7 @@ public sealed class IdentificationEventPublisher : IAsyncDisposable
             _topic);
     }
 
-    public async Task PublishInteractionReviewedAsync(string interactionId, string decision, string reviewer, DateTimeOffset reviewedAt, CancellationToken cancellationToken = default)
+    public async Task PublishInteractionReviewedAsync(string interactionId, string decision, string reviewer, DateTimeOffset reviewedAt, string? correlationId = null, string? causationId = null, CancellationToken cancellationToken = default)
     {
         var envelope = new
         {
@@ -72,6 +74,8 @@ public sealed class IdentificationEventPublisher : IAsyncDisposable
             subject = $"interaction/{interactionId}",
             time = reviewedAt,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data = new
             {
                 interactionId,

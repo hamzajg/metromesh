@@ -65,6 +65,7 @@ public class TelemetryProcessingTests
             DateTimeOffset.UtcNow,
             "application/json",
             "corr-worker-1",
+            null,
             new TelemetryEventData(
                 "eq-1",
                 "st-1",

@@ -95,6 +95,7 @@ public class IdentificationProcessingTests
             DateTimeOffset.UtcNow,
             "application/json",
             "corr-ident-1",
+            null,
             new TelemetryEventData(
                 equipmentId,
                 stationId,

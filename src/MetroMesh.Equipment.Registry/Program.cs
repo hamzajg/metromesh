@@ -1,15 +1,23 @@
+using System.Diagnostics;
 using MetroMesh.Equipment.Registry.Contracts;
 using MetroMesh.Equipment.Registry.Events;
 using MetroMesh.Equipment.Registry.Middleware;
 using MetroMesh.Equipment.Registry.Persistence;
 using MetroMesh.Equipment.Registry.Validation;
 using MetroMesh.Telemetry.Core.Events;
+using MetroMesh.Telemetry.Core.Observability;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Registry API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("registry");
+builder.Services.AddMetroMeshServiceCatalog();
 
 builder.Services.AddSingleton(_ =>
 {
@@ -71,7 +79,7 @@ app.MapPost("/v1/stations", async (
             station.Address,
             station.Status,
             station.Location
-        }, cancellationToken);
+        }, correlationId, Activity.Current?.Id, cancellationToken);
 
         return Results.Created($"/v1/stations/{station.Id}", new StationResponse(
             station.Id,
@@ -147,7 +155,7 @@ app.MapPost("/v1/equipment", async (
             equipment.Model,
             equipment.StationId,
             equipment.Status
-        }, cancellationToken);
+        }, correlationId, Activity.Current?.Id, cancellationToken);
 
         return Results.Created($"/v1/equipment/{equipment.Id}", new EquipmentResponse(
             equipment.Id,
@@ -209,7 +217,7 @@ app.MapPatch("/v1/stations/{stationId}", async (
             await RegistryEvents.EmitAsync(store, "station.status.changed", station.Id, new
             {
                 station.Status
-            }, cancellationToken);
+            }, correlationId, Activity.Current?.Id, cancellationToken);
         }
 
         return station is null
@@ -252,18 +260,20 @@ app.MapGet("/v1/stations/{stationId}/equipment", async (
 
 app.MapPost("/v1/equipment/{equipmentId}/decommission", async (
         string equipmentId,
+        HttpContext httpContext,
         IRegistryStore store,
         CancellationToken cancellationToken) =>
     {
         var equipment = await store.UpdateEquipmentStatusAsync(equipmentId, "decommissioned", cancellationToken);
         if (equipment is not null)
         {
+            var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
             await RegistryEvents.EmitAsync(store, $"equipment.{equipment.Kind}.decommissioned", equipment.Id, new
             {
                 equipment.Kind,
                 equipment.StationId,
                 equipment.Status
-            }, cancellationToken);
+            }, correlationId, Activity.Current?.Id, cancellationToken);
         }
 
         return equipment is null
@@ -301,6 +311,23 @@ app.MapGet("/health/ready", async (IRegistryStore store, CancellationToken cance
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogRegistry = app.Services.GetRequiredService<IServiceCatalog>();
+catalogRegistry.RegisterService("registry", "1.0.0", "http://localhost:8082", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8082"
+});
 
 await app.Services.GetRequiredService<IRegistryStore>().InitializeAsync();
 app.Run();

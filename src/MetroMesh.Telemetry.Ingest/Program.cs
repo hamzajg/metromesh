@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MetroMesh.Telemetry.Core.Contracts;
 using MetroMesh.Telemetry.Core.Events;
+using MetroMesh.Telemetry.Core.Observability;
 using MetroMesh.Telemetry.Core.Persistence;
 using MetroMesh.Telemetry.Ingest.Events;
 using MetroMesh.Telemetry.Ingest.Middleware;
@@ -10,7 +12,13 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Ingest API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("ingest");
+builder.Services.AddMetroMeshServiceCatalog();
 
 builder.Services.AddSingleton(_ =>
 {
@@ -72,6 +80,7 @@ app.MapPost("/v1/events", async (
             accepted.Time!.Value,
             accepted.DataContentType!,
             correlationId,
+            Activity.Current?.Id,
             accepted.Data!);
         var envelopeJson = JsonSerializer.Serialize(envelope, jsonOptions);
 
@@ -125,6 +134,23 @@ app.MapGet("/health/ready", async (ITelemetryEventStore store, CancellationToken
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogIngest = app.Services.GetRequiredService<IServiceCatalog>();
+catalogIngest.RegisterService("ingest", "1.0.0", "http://localhost:8080", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8080"
+});
 
 await app.Services.GetRequiredService<ITelemetryEventStore>().InitializeAsync();
 app.Run();

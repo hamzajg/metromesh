@@ -1,14 +1,22 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MetroMesh.Passenger.Loyalty.Contracts;
 using MetroMesh.Passenger.Loyalty.Middleware;
 using MetroMesh.Passenger.Loyalty.Persistence;
 using MetroMesh.Passenger.Loyalty.Services;
+using MetroMesh.Telemetry.Core.Observability;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Passenger Loyalty API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("passenger-loyalty");
+builder.Services.AddMetroMeshServiceCatalog();
 
 var connectionString = builder.Configuration.GetConnectionString("PassengerDb")
     ?? builder.Configuration["METROMESH_DB"];
@@ -65,7 +73,7 @@ app.MapPost("/v1/passengers", async (
             DateTimeOffset.UtcNow);
 
         await store.RecordPassengerAsync(profile, cancellationToken);
-        await publisher.PublishPassengerCreatedAsync(profile, cancellationToken);
+        await publisher.PublishPassengerCreatedAsync(profile, correlationId, Activity.Current?.Id, cancellationToken);
 
         logger.LogInformation(
             "Passenger profile created {PassengerId} reference {ProfileReference}",
@@ -126,7 +134,7 @@ app.MapPost("/v1/passengers/{passengerId}/info", async (
             null);
 
         await store.RecordPassengerInfoAsync(info, cancellationToken);
-        await publisher.PublishPassengerUpdatedAsync(passengerId, update, DateTimeOffset.UtcNow, cancellationToken);
+        await publisher.PublishPassengerUpdatedAsync(passengerId, update, DateTimeOffset.UtcNow, correlationId, Activity.Current?.Id, cancellationToken);
 
         return Results.Accepted($"/v1/passengers/{passengerId}/info/{info.Id}", new
         {
@@ -330,6 +338,23 @@ app.MapGet("/health/ready", async (IPassengerStore store, CancellationToken canc
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogPassenger = app.Services.GetRequiredService<IServiceCatalog>();
+catalogPassenger.RegisterService("passenger-loyalty", "1.0.0", "http://localhost:8086", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8086"
+});
 
 await app.Services.GetRequiredService<IPassengerStore>().InitializeAsync();
 app.Run();

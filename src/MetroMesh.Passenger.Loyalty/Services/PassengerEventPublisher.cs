@@ -25,7 +25,7 @@ public sealed class PassengerEventPublisher : IAsyncDisposable
         _logger = logger;
     }
 
-    public async Task PublishPassengerCreatedAsync(PassengerProfile profile, CancellationToken cancellationToken = default)
+    public async Task PublishPassengerCreatedAsync(PassengerProfile profile, string? correlationId = null, string? causationId = null, CancellationToken cancellationToken = default)
     {
         var envelope = new
         {
@@ -36,6 +36,8 @@ public sealed class PassengerEventPublisher : IAsyncDisposable
             subject = $"passenger/{profile.Id}",
             time = profile.CreatedAt,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data = new
             {
                 passengerId = profile.Id,
@@ -57,7 +59,7 @@ public sealed class PassengerEventPublisher : IAsyncDisposable
             _topic);
     }
 
-    public async Task PublishPassengerUpdatedAsync(string passengerId, PassengerInfoUpdate update, DateTimeOffset updatedAt, CancellationToken cancellationToken = default)
+    public async Task PublishPassengerUpdatedAsync(string passengerId, PassengerInfoUpdate update, DateTimeOffset updatedAt, string? correlationId = null, string? causationId = null, CancellationToken cancellationToken = default)
     {
         var envelope = new
         {
@@ -68,6 +70,8 @@ public sealed class PassengerEventPublisher : IAsyncDisposable
             subject = $"passenger/{passengerId}",
             time = updatedAt,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data = new
             {
                 passengerId,

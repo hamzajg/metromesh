@@ -94,6 +94,7 @@ public class AnalyticsProcessingTests
             DateTimeOffset.UtcNow,
             "application/json",
             "corr-analytics-1",
+            null,
             new TelemetryEventData(
                 equipmentId,
                 stationId,

@@ -34,6 +34,7 @@ public sealed record TelemetryEventEnvelope(
     DateTimeOffset Time,
     string DataContentType,
     string CorrelationId,
+    string? CausationId,
     TelemetryEventData Data);
 
 public sealed record TelemetryEventStatusResponse(

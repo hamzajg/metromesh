@@ -1,8 +1,11 @@
+using MetroMesh.Telemetry.Core.Observability;
 using MetroMesh.Telemetry.Core.Persistence;
 using MetroMesh.Telemetry.Worker.Services;
 using Npgsql;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddMetroMeshMetrics("telemetry-worker");
 
 var connectionString = builder.Configuration.GetConnectionString("TelemetryDb")
     ?? builder.Configuration["METROMESH_DB"];

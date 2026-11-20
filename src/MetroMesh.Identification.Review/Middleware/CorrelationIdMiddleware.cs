@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace MetroMesh.Identification.Review.Middleware;
 
 public sealed class CorrelationIdMiddleware
@@ -21,6 +23,15 @@ public sealed class CorrelationIdMiddleware
 
         context.Items[ItemKey] = correlationId;
         context.Response.Headers[HeaderName] = correlationId;
+
+        var activity = Activity.Current;
+        if (activity is not null)
+        {
+            activity.SetTag("correlation_id", correlationId);
+            activity.SetTag("causation_id", activity.Id);
+            activity.DisplayName = $"MetroMesh.{context.Request.Method} {context.Request.Path}";
+        }
+
         await _next(context);
     }
 }
