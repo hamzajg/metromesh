@@ -126,3 +126,22 @@ services:
         condition: service_healthy
       redpanda:
         condition: service_healthy
+
+  identification-review:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Identification.Review/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8085
+      ConnectionStrings__IdentificationDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Kafka__BootstrapServers: redpanda:9092
+      Kafka__IdentificationTopic: identification.review.v1
+      Kafka__ConsumerGroup: identification-review-worker
+      Identification__MaxAttempts: "3"
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
