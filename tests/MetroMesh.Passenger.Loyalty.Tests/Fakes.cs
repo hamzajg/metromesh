@@ -7,6 +7,9 @@ public sealed class FakePassengerStore : IPassengerStore
 {
     private readonly Dictionary<string, PassengerProfile> _passengers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<PassengerInfoRecord>> _infoHistory = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, LoyaltyProgram> _loyaltyPrograms = new(StringComparer.Ordinal);
+    private readonly List<Notification> _notifications = new();
+    private readonly List<AuditEntry> _audit = new();
     private readonly HashSet<string> _processed = new(StringComparer.Ordinal);
 
     public int ProcessedCount;
@@ -57,6 +60,70 @@ public sealed class FakePassengerStore : IPassengerStore
 
     public Task<bool> PingAsync(CancellationToken cancellationToken = default) => Task.FromResult(PingOk);
 
+    public Task RecordLoyaltyProgramAsync(LoyaltyProgram program, CancellationToken cancellationToken = default)
+    {
+        _loyaltyPrograms[program.Id] = program;
+        return Task.CompletedTask;
+    }
+
+    public Task<LoyaltyProgram?> GetLoyaltyProgramAsync(string programId, CancellationToken cancellationToken = default)
+    {
+        _loyaltyPrograms.TryGetValue(programId, out var program);
+        return Task.FromResult(program);
+    }
+
+    public Task<IReadOnlyList<LoyaltyProgram>> GetLoyaltyProgramsAsync(string passengerId, CancellationToken cancellationToken = default)
+    {
+        var programs = _loyaltyPrograms.Values.Where(p => p.PassengerId == passengerId).ToList();
+        return Task.FromResult<IReadOnlyList<LoyaltyProgram>>(programs);
+    }
+
+    public Task RetireLoyaltyProgramAsync(string programId, CancellationToken cancellationToken = default)
+    {
+        if (_loyaltyPrograms.TryGetValue(programId, out var program))
+        {
+            _loyaltyPrograms[programId] = program with
+            {
+                Status = "retired",
+                RetiredAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task RecordNotificationAsync(Notification notification, CancellationToken cancellationToken = default)
+    {
+        _notifications.Add(notification);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<Notification>> GetNotificationsAsync(string? passengerId, CancellationToken cancellationToken = default)
+    {
+        var filtered = passengerId is not null
+            ? _notifications.Where(n => n.PassengerId == passengerId).ToList()
+            : _notifications.ToList();
+        return Task.FromResult<IReadOnlyList<Notification>>(filtered);
+    }
+
+    public Task RecordAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+    {
+        _audit.Add(entry);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<AuditEntry>> GetAuditAsync(string? passengerId, CancellationToken cancellationToken = default)
+    {
+        var filtered = passengerId is not null
+            ? _audit.Where(a => a.PassengerId == passengerId).ToList()
+            : _audit.ToList();
+        return Task.FromResult<IReadOnlyList<AuditEntry>>(filtered);
+    }
+
     public IReadOnlyList<PassengerProfile> Passengers => _passengers.Values.ToList();
     public IReadOnlyDictionary<string, List<PassengerInfoRecord>> InfoHistory => _infoHistory;
+    public IReadOnlyDictionary<string, LoyaltyProgram> LoyaltyPrograms => _loyaltyPrograms;
+    public IReadOnlyList<Notification> Notifications => _notifications;
+    public IReadOnlyList<AuditEntry> AuditEntries => _audit;
 }

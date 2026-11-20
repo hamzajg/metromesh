@@ -2,12 +2,12 @@
 
 Status: running
 Iterations: 2
-Updated: 2026-11-20T09:55:32Z
+Updated: 2026-11-20T10:26:12Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
-| 1 | in-progress | feat/passenger-loyalty-w1 | — | — | 2026-11-20T09:55:32Z |
-| 2 | pending | — | — | — | — |
+| 1 | done | feat/passenger-loyalty-w1 | #29 | build clean; PR #29 merged to main | 2026-11-20T10:26:04Z |
+| 2 | in-progress | feat/passenger-loyalty-w2 | — | — | 2026-11-20T10:26:12Z |
 | 3 | pending | — | — | — | — |
 
 ## Gates
@@ -20,3 +20,5 @@ Updated: 2026-11-20T09:55:32Z
 
 - 2026-11-20T09:54:37Z gate G1 met: file:specs/passenger-loyalty/DECISION-REVIEW.md
 - 2026-11-20T09:55:32Z start wave 1 on feat/passenger-loyalty-w1
+- 2026-11-20T10:26:04Z complete wave 1 (#29): build clean; PR #29 merged to main
+- 2026-11-20T10:26:12Z start wave 2 on feat/passenger-loyalty-w2

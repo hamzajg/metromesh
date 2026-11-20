@@ -150,6 +150,166 @@ app.MapGet("/v1/passengers/{passengerId}/info", async (
     .WithName("GetPassengerInfo")
     .WithOpenApi();
 
+app.MapPost("/v1/loyalty", async (
+        LoyaltyProgramRequest? request,
+        string passengerId,
+        HttpContext httpContext,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
+        if (request is null || string.IsNullOrWhiteSpace(request.Tier))
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["tier"] = ["Tier is required."] },
+                detail: "The loyalty program request is invalid.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid loyalty program",
+                extensions: new Dictionary<string, object?> { ["correlationId"] = correlationId });
+        }
+
+        var program = new LoyaltyProgram(
+            Guid.NewGuid().ToString("N"),
+            passengerId,
+            request.Tier,
+            request.Status ?? "active",
+            request.Terms,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            null);
+
+        await store.RecordLoyaltyProgramAsync(program, cancellationToken);
+        await store.RecordAuditAsync(
+            new AuditEntry(
+                Guid.NewGuid().ToString("N"),
+                passengerId,
+                "loyalty.created",
+                null,
+                $"Loyalty program {program.Id} created with tier {program.Tier}",
+                DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Accepted($"/v1/loyalty/{program.Id}", new
+        {
+            program.Id,
+            status = "accepted",
+            correlationId,
+            createdAt = DateTimeOffset.UtcNow
+        });
+    })
+    .WithName("CreateLoyaltyProgram")
+    .WithOpenApi();
+
+app.MapGet("/v1/loyalty", async (
+        string passengerId,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var programs = await store.GetLoyaltyProgramsAsync(passengerId, cancellationToken);
+        return Results.Ok(programs);
+    })
+    .WithName("ListLoyaltyPrograms")
+    .WithOpenApi();
+
+app.MapPost("/v1/loyalty/{programId}/retire", async (
+        string programId,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var program = await store.GetLoyaltyProgramAsync(programId, cancellationToken);
+        if (program is null)
+        {
+            return Results.NotFound();
+        }
+
+        await store.RetireLoyaltyProgramAsync(programId, cancellationToken);
+        await store.RecordAuditAsync(
+            new AuditEntry(
+                Guid.NewGuid().ToString("N"),
+                program.PassengerId,
+                "loyalty.retired",
+                null,
+                $"Loyalty program {programId} retired",
+                DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Ok(new { programId, status = "retired", retiredAt = DateTimeOffset.UtcNow });
+    })
+    .WithName("RetireLoyaltyProgram")
+    .WithOpenApi();
+
+app.MapPost("/v1/notifications", async (
+        NotificationRequest? request,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Recipient))
+        {
+            return Results.BadRequest(new { error = "Notification recipient is required." });
+        }
+
+        var notification = new Notification(
+            Guid.NewGuid().ToString("N"),
+            request.PassengerId ?? string.Empty,
+            request.Type ?? "profile.updated",
+            request.Recipient,
+            "pending",
+            DateTimeOffset.UtcNow);
+
+        await store.RecordNotificationAsync(notification, cancellationToken);
+        await store.RecordAuditAsync(
+            new AuditEntry(
+                Guid.NewGuid().ToString("N"),
+                notification.PassengerId,
+                "notification.created",
+                null,
+                $"Notification {notification.Type} to {notification.Recipient}",
+                DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Accepted($"/v1/notifications/{notification.Id}", notification);
+    })
+    .WithName("CreateNotification")
+    .WithOpenApi();
+
+app.MapGet("/v1/notifications", async (
+        string? passengerId,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var notifications = await store.GetNotificationsAsync(passengerId, cancellationToken);
+        return Results.Ok(notifications);
+    })
+    .WithName("ListNotifications")
+    .WithOpenApi();
+
+app.MapPost("/v1/audit", async (
+        AuditEntry? entry,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        if (entry is null)
+        {
+            return Results.BadRequest(new { error = "Audit entry body is required." });
+        }
+
+        await store.RecordAuditAsync(entry, cancellationToken);
+        return Results.Accepted($"/v1/audit/{entry.Id}", entry);
+    })
+    .WithName("CreateAudit")
+    .WithOpenApi();
+
+app.MapGet("/v1/audit", async (
+        string? passengerId,
+        IPassengerStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var entries = await store.GetAuditAsync(passengerId, cancellationToken);
+        return Results.Ok(entries);
+    })
+    .WithName("ListAudit")
+    .WithOpenApi();
+
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
     .WithName("Liveness")
     .WithOpenApi();

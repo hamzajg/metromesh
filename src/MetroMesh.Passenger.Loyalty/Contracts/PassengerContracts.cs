@@ -27,3 +27,39 @@ public sealed record PassengerInfoRecord(
     string PreviousContactEmail,
     string? PreviousContactPhone,
     string? PreviousAddress);
+
+public sealed record LoyaltyProgram(
+    string Id,
+    string PassengerId,
+    string Tier,
+    string Status,
+    string Terms,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? RetiredAt);
+
+public sealed record LoyaltyProgramRequest(
+    string Tier,
+    string Status,
+    string Terms);
+
+public sealed record Notification(
+    string Id,
+    string PassengerId,
+    string Type,
+    string Recipient,
+    string Status,
+    DateTimeOffset CreatedAt);
+
+public sealed record NotificationRequest(
+    string PassengerId,
+    string Type,
+    string Recipient);
+
+public sealed record AuditEntry(
+    string Id,
+    string PassengerId,
+    string Action,
+    string? Actor,
+    string? Details,
+    DateTimeOffset CreatedAt);
