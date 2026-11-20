@@ -21,6 +21,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
 builder.Services.AddSingleton<IIdentificationStore, IdentificationStore>();
 builder.Services.AddSingleton<IdentificationEventProcessor>();
+builder.Services.AddSingleton<IdentificationEventPublisher>();
 builder.Services.AddHostedService<IdentificationConsumerService>();
 
 var app = builder.Build();
@@ -40,6 +41,7 @@ app.MapPost("/v1/identifications", async (
         IdentificationIngestRequest? request,
         HttpContext httpContext,
         IIdentificationStore store,
+        IdentificationEventPublisher publisher,
         ILogger<Program> logger,
         CancellationToken cancellationToken) =>
     {
@@ -86,6 +88,7 @@ app.MapPost("/v1/identifications", async (
                 ? null
                 : request.MatchResult);
         await store.RecordInteractionAsync(interaction, cancellationToken);
+        await publisher.PublishInteractionCreatedAsync(interaction, cancellationToken);
 
         logger.LogInformation(
             "Identification recorded for interaction {InteractionId} station {StationId} match {MatchResult}",
@@ -122,6 +125,7 @@ app.MapPost("/v1/identifications/{interactionId}/review", async (
         ReviewRequest? request,
         HttpContext httpContext,
         IIdentificationStore store,
+        IdentificationEventPublisher publisher,
         CancellationToken cancellationToken) =>
     {
         var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
@@ -142,6 +146,13 @@ app.MapPost("/v1/identifications/{interactionId}/review", async (
             request.Decision,
             request.Reviewer ?? "unknown",
             DateTimeOffset.UtcNow), cancellationToken);
+
+        await publisher.PublishInteractionReviewedAsync(
+            interactionId,
+            request.Decision,
+            request.Reviewer ?? "unknown",
+            DateTimeOffset.UtcNow,
+            cancellationToken);
 
         await store.RecordAuditAsync(
             new AuditEntry(
