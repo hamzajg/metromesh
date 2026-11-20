@@ -17,6 +17,10 @@ operations. Five deployables share `MetroMesh.Telemetry.Core`:
 - `src/MetroMesh.Maintenance` — ASP.NET Core maintenance API (port 8083):
   requests, work-order lifecycle with history, registry equipment
   validation, domain events via outbox to `maintenance.workorder.v1`.
+- `src/MetroMesh.Analytics` — ASP.NET Core analytics API (port 8084):
+  consumes `equipment.telemetry.v1`, writes idempotent ridership readings,
+  exposes `GET /v1/ridership/counts` and `GET /v1/ridership/series` with
+  API-key auth, plus health probes.
 - `src/MetroMesh.Telemetry.Core` — shared contracts, `ITelemetryEventStore`
   (Postgres implementation), and the `IEventBus`/Kafka producer used by
   both outbox publishers. No web/worker dependencies.
