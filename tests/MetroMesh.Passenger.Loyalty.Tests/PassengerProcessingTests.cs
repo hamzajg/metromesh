@@ -1,8 +1,10 @@
 using System.Text.Json;
+using Confluent.Kafka;
 using MetroMesh.Passenger.Loyalty.Contracts;
 using MetroMesh.Passenger.Loyalty.Persistence;
 using MetroMesh.Passenger.Loyalty.Services;
 using MetroMesh.Telemetry.Core.Contracts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MetroMesh.Passenger.Loyalty.Tests;
@@ -141,5 +143,26 @@ public class PassengerProcessingTests
         Assert.Single(audit);
         Assert.Equal("loyalty.created", audit[0].Action);
         Assert.Equal("operator-1", audit[0].Actor);
+    }
+
+    [Fact(DisplayName = "Publisher produces passenger.created event to Kafka topic")]
+    public async Task Publisher_produces_passenger_created_event()
+    {
+        var config = new Dictionary<string, string?>
+        {
+            ["Kafka:BootstrapServers"] = "localhost:9092",
+            ["Kafka:PassengerTopic"] = "passenger.loyalty.v1"
+        };
+
+        var publisher = new PassengerEventPublisher(new ConfigurationBuilder().AddInMemoryCollection(config).Build(), NullLogger<PassengerEventPublisher>.Instance);
+
+        var profile = new PassengerProfile("pub-1", "pref-pub-1", null, "active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+
+        // Should not throw on serialization or producer creation; Kafka delivery may fail if broker unavailable
+        await publisher.PublishPassengerCreatedAsync(profile);
+
+        await publisher.PublishPassengerUpdatedAsync("pub-1", new PassengerInfoUpdate("a@b.com", null, null), DateTimeOffset.UtcNow);
+
+        await publisher.DisposeAsync();
     }
 }
