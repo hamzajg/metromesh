@@ -1,14 +1,22 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MetroMesh.Identification.Review.Contracts;
 using MetroMesh.Identification.Review.Middleware;
 using MetroMesh.Identification.Review.Persistence;
 using MetroMesh.Identification.Review.Services;
+using MetroMesh.Telemetry.Core.Observability;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Identification Review API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("identification-review");
+builder.Services.AddMetroMeshServiceCatalog();
 
 var connectionString = builder.Configuration.GetConnectionString("IdentificationDb")
     ?? builder.Configuration["METROMESH_DB"];
@@ -88,7 +96,7 @@ app.MapPost("/v1/identifications", async (
                 ? null
                 : request.MatchResult);
         await store.RecordInteractionAsync(interaction, cancellationToken);
-        await publisher.PublishInteractionCreatedAsync(interaction, cancellationToken);
+        await publisher.PublishInteractionCreatedAsync(interaction, correlationId, Activity.Current?.Id, cancellationToken);
 
         logger.LogInformation(
             "Identification recorded for interaction {InteractionId} station {StationId} match {MatchResult}",
@@ -152,6 +160,8 @@ app.MapPost("/v1/identifications/{interactionId}/review", async (
             request.Decision,
             request.Reviewer ?? "unknown",
             DateTimeOffset.UtcNow,
+            correlationId,
+            Activity.Current?.Id,
             cancellationToken);
 
         await store.RecordAuditAsync(
@@ -281,6 +291,23 @@ app.MapGet("/health/ready", async (IIdentificationStore store, CancellationToken
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogIdentification = app.Services.GetRequiredService<IServiceCatalog>();
+catalogIdentification.RegisterService("identification-review", "1.0.0", "http://localhost:8085", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8085"
+});
 
 await app.Services.GetRequiredService<IIdentificationStore>().InitializeAsync();
 app.Run();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MetroMesh.Maintenance.Contracts;
 using MetroMesh.Maintenance.Events;
 using MetroMesh.Maintenance.Middleware;
@@ -5,12 +6,20 @@ using MetroMesh.Maintenance.Persistence;
 using MetroMesh.Maintenance.Services;
 using MetroMesh.Maintenance.Validation;
 using MetroMesh.Telemetry.Core.Events;
+using MetroMesh.Telemetry.Core.Observability;
+using MetroMesh.Telemetry.Core.Resilience;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Maintenance API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("maintenance");
+builder.Services.AddMetroMeshServiceCatalog();
 
 builder.Services.AddSingleton(_ =>
 {
@@ -32,13 +41,21 @@ builder.Services.AddHostedService<OutboxPublisherService>();
 var registryBaseUrl = builder.Configuration["Maintenance:Registry:BaseUrl"] ?? "http://localhost:8082";
 var registryApiKey = builder.Configuration["Maintenance:Registry:ApiKey"]
     ?? builder.Configuration["MetroMesh:ApiKey"];
-builder.Services.AddHttpClient<IEquipmentDirectory, HttpEquipmentDirectory>(client =>
+builder.Services.AddHttpClient<HttpEquipmentDirectory>(client =>
 {
     client.BaseAddress = new Uri(registryBaseUrl.TrimEnd('/') + "/");
     if (!string.IsNullOrWhiteSpace(registryApiKey))
     {
         client.DefaultRequestHeaders.Add("X-MetroMesh-Api-Key", registryApiKey);
     }
+});
+builder.Services.AddMetroMeshResilience("maintenance");
+builder.Services.AddSingleton<IEquipmentDirectory>(sp =>
+{
+    var inner = sp.GetRequiredService<HttpEquipmentDirectory>();
+    var circuitBreaker = sp.GetRequiredService<ICircuitBreakerPolicy>();
+    var metrics = sp.GetService<ITelemetryMetrics>();
+    return new CircuitBreakerEquipmentDirectory(inner, circuitBreaker, metrics);
 });
 
 var app = builder.Build();
@@ -138,6 +155,7 @@ app.MapPost("/v1/maintenance-requests", async (
         IEquipmentDirectory directory,
         CancellationToken cancellationToken) =>
     {
+        var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
         var errors = MaintenanceValidator.Validate(request);
         if (errors.Count > 0)
         {
@@ -164,7 +182,7 @@ app.MapPost("/v1/maintenance-requests", async (
             record.Severity,
             record.Source,
             record.Status
-        }, cancellationToken);
+        }, correlationId, Activity.Current?.Id, cancellationToken);
 
         return Results.Created($"/v1/maintenance-requests/{record.Id}", new MaintenanceRequestResponse(
             record.Id,
@@ -207,6 +225,7 @@ app.MapPost("/v1/work-orders", async (
         IEquipmentDirectory directory,
         CancellationToken cancellationToken) =>
     {
+        var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
         var errors = MaintenanceValidator.Validate(request);
         if (errors.Count > 0)
         {
@@ -224,7 +243,7 @@ app.MapPost("/v1/work-orders", async (
             var linked = await store.GetRequestAsync(request.RequestId, cancellationToken);
             if (linked is null)
             {
-                var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
+                correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
                 return Results.Problem(
                     detail: "The referenced maintenance request does not exist.",
                     statusCode: StatusCodes.Status400BadRequest,
@@ -254,7 +273,7 @@ app.MapPost("/v1/work-orders", async (
             record.Type,
             record.Priority,
             record.Status
-        }, cancellationToken);
+        }, correlationId, Activity.Current?.Id, cancellationToken);
 
         return Results.Created($"/v1/work-orders/{record.Id}", ToWorkOrderResponse(record));
     })
@@ -326,7 +345,7 @@ async Task<IResult> TransitionAsync(
             updated.Assignee,
             fromStatus = current.Status,
             toStatus = updated.Status
-        }, cancellationToken);
+        }, httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty, Activity.Current?.Id, cancellationToken);
     }
 
     return updated is null
@@ -455,6 +474,24 @@ app.MapGet("/health/ready", async (IMaintenanceStore store, CancellationToken ca
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogMaintenance = app.Services.GetRequiredService<IServiceCatalog>();
+catalogMaintenance.RegisterService("maintenance", "1.0.0", "http://localhost:8083", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8083",
+    ["depends_on"] = "registry"
+});
 
 await app.Services.GetRequiredService<IMaintenanceStore>().InitializeAsync();
 app.Run();

@@ -3,12 +3,19 @@ using MetroMesh.Analytics.Contracts;
 using MetroMesh.Analytics.Middleware;
 using MetroMesh.Analytics.Persistence;
 using MetroMesh.Analytics.Services;
+using MetroMesh.Telemetry.Core.Observability;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "MetroMesh Analytics API", Version = "1.0.0" });
+});
+
+builder.Services.AddMetroMeshMetrics("analytics");
+builder.Services.AddMetroMeshServiceCatalog();
 
 var connectionString = builder.Configuration.GetConnectionString("AnalyticsDb")
     ?? builder.Configuration["METROMESH_DB"];
@@ -91,6 +98,23 @@ app.MapGet("/health/ready", async (IAnalyticsStore store, CancellationToken canc
     })
     .WithName("Readiness")
     .WithOpenApi();
+
+app.MapGet("/metrics", (ITelemetryMetrics metrics) =>
+    Results.Text(metrics.ToPrometheusFormat(), "text/plain; version=0.0.4; charset=utf-8"))
+    .WithName("Metrics")
+    .WithOpenApi();
+
+app.MapGet("/catalog", (IServiceCatalog catalog) =>
+    Results.Ok(catalog.ListServices()))
+    .WithName("ServiceCatalog")
+    .WithOpenApi();
+
+var catalogAnalytics = app.Services.GetRequiredService<IServiceCatalog>();
+catalogAnalytics.RegisterService("analytics", "1.0.0", "http://localhost:8084", new Dictionary<string, string>
+{
+    ["protocol"] = "http",
+    ["port"] = "8084"
+});
 
 await app.Services.GetRequiredService<IAnalyticsStore>().InitializeAsync();
 app.Run();

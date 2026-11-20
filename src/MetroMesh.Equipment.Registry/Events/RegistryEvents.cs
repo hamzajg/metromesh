@@ -12,6 +12,8 @@ public static class RegistryEvents
         string eventType,
         string aggregateId,
         object data,
+        string? correlationId = null,
+        string? causationId = null,
         CancellationToken cancellationToken = default)
     {
         var envelope = new
@@ -22,6 +24,8 @@ public static class RegistryEvents
             subject = aggregateId,
             time = DateTimeOffset.UtcNow,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data
         };
 

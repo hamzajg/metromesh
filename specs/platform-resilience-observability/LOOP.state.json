@@ -1,0 +1,24 @@
+{
+  "feature": "platform-resilience-observability",
+  "currentWave": 1,
+  "waves": [
+    { "number": 1, "status": "pending" },
+    { "number": 2, "status": "pending" },
+    { "number": 3, "status": "pending" },
+    { "number": 4, "status": "pending" }
+  ],
+  "gates": {
+    "G1": { "status": "pending", "evidence": null },
+    "G2": { "status": "pending", "evidence": null }
+  },
+  "acceptanceCriteria": {
+    "AC-1": { "status": "pending" },
+    "AC-2": { "status": "pending" },
+    "AC-3": { "status": "pending" },
+    "AC-4": { "status": "pending" },
+    "AC-5": { "status": "pending" },
+    "AC-6": { "status": "pending" }
+  },
+  "mergePr": null,
+  "deployed": false
+}

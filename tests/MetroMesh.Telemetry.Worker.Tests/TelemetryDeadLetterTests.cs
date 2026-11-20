@@ -69,6 +69,7 @@ public class TelemetryDeadLetterTests : IClassFixture<PostgresFixture>
             DateTimeOffset.UtcNow,
             "application/json",
             "corr-deadletter-1",
+            null,
             new TelemetryEventData(
                 "eq-1",
                 "st-1",

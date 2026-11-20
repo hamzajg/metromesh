@@ -78,6 +78,7 @@ public class PassengerProcessingTests
             DateTimeOffset.UtcNow,
             "application/json",
             "corr-pass-1",
+            null,
             new TelemetryEventData(
                 equipmentId,
                 stationId,

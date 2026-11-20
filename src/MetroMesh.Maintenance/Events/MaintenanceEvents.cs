@@ -12,6 +12,8 @@ public static class MaintenanceEvents
         string eventType,
         string aggregateId,
         object data,
+        string? correlationId = null,
+        string? causationId = null,
         CancellationToken cancellationToken = default)
     {
         var envelope = new
@@ -22,6 +24,8 @@ public static class MaintenanceEvents
             subject = aggregateId,
             time = DateTimeOffset.UtcNow,
             datacontenttype = "application/json",
+            correlationId,
+            causationId,
             data
         };
 
