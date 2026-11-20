@@ -1,8 +1,8 @@
 # Delivery Loop — passenger-loyalty
 
-Status: running
+Status: done
 Iterations: 2
-Updated: 2026-11-20T10:43:50Z
+Updated: 2026-11-20T10:47:16Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -25,3 +25,4 @@ Updated: 2026-11-20T10:43:50Z
 - 2026-11-20T10:41:10Z complete wave 2 (#30): tests 17 passing; PR #30 merged to main
 - 2026-11-20T10:41:20Z start wave 3 on feat/passenger-loyalty-w3
 - 2026-11-20T10:43:50Z complete wave 3 (#31): tests 18 passing; build clean; PR #31 merged to main
+- 2026-11-20T10:47:16Z feature validated and shipped
