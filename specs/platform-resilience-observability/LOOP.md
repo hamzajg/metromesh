@@ -1,32 +1,34 @@
-# Loop: Platform resilience and observability
+# Delivery Loop — platform-resilience-observability
 
-## Current wave
+Status: done
+Iterations: 2
+Updated: 2026-11-20T16:42:08Z
 
-1
+| Wave | Status | Branch | PR | Evidence | Updated |
+|------|--------|--------|----|----------|---------|
+| 1 | done | feat/platform-resilience-observability-w1 | #35 | tests pass, CI green, PR #35 merged to main | 2026-11-20T14:37:50Z |
+| 2 | done | feat/platform-resilience-observability-w2 | #35 | tests pass, CI green, PR #35 merged to main | 2026-11-20T16:37:08Z |
+| 3 | done | feat/platform-resilience-observability-w3 | #35 | tests pass, CI green, PR #35 merged to main | 2026-11-20T16:37:35Z |
+| 4 | done | feat/platform-resilience-observability-w4 | #35 | tests pass, CI green, PR #35 merged to main | 2026-11-20T16:38:40Z |
 
-## Wave status
+## Gates
 
-| Wave | Status | Started | Completed | Merge PR | Deployed |
-|------|--------|---------|-----------|----------|----------|
-| 1 | pending | — | — | — | — |
-| 2 | pending | — | — | — | — |
-| 3 | pending | — | — | — | — |
-| 4 | pending | — | — | — | — |
+| Gate | Status | Evidence | Updated |
+|------|--------|----------|---------|
+| G1 | met | specs/platform-resilience-observability/DECISION-REVIEW.md | 2026-11-20T14:19:20Z |
+| G2 | met | docker info --format '{{.ServerVersion}}' -> 29.10.0 (#35) | 2026-11-20T16:40:59Z |
 
-## Gate status
+## Events
 
-| Gate | Status | Evidence |
-|------|--------|----------|
-| G1 — Design decisions challenged | pending | file:DECISION-REVIEW.md |
-| G2 — Local container runtime available | pending | command:docker info |
-
-## Acceptance criteria status
-
-| AC | Status | Scenario |
-|----|--------|----------|
-| AC-1 | pending | Service exposes Prometheus metrics endpoint |
-| AC-2 | pending | Correlation ID propagates into Kafka envelope |
-| AC-3 | pending | Causation ID chains producer to consumer |
-| AC-4 | pending | Circuit breaker trips with fallback |
-| AC-5 | pending | Bounded retries before dead-lettering |
-| AC-6 | pending | Resilience abstractions shared from Telemetry.Core |
+- 2026-11-20T14:19:20Z gate G1 met: specs/platform-resilience-observability/DECISION-REVIEW.md
+- 2026-11-20T14:19:20Z gate G2 met: docker info --format '{{.ServerVersion}}' -> 29.10.0
+- 2026-11-20T14:37:43Z start wave 1 on feat/platform-resilience-observability-w1
+- 2026-11-20T14:37:50Z complete wave 1 (#35): tests pass, CI green, PR #35 merged to main
+- 2026-11-20T16:36:32Z start wave 2 on feat/platform-resilience-observability-w2
+- 2026-11-20T16:37:08Z complete wave 2 (#35): tests pass, CI green, PR #35 merged to main
+- 2026-11-20T16:37:21Z start wave 3 on feat/platform-resilience-observability-w3
+- 2026-11-20T16:37:35Z complete wave 3 (#35): tests pass, CI green, PR #35 merged to main
+- 2026-11-20T16:38:28Z start wave 4 on feat/platform-resilience-observability-w4
+- 2026-11-20T16:38:40Z complete wave 4 (#35): tests pass, CI green, PR #35 merged to main
+- 2026-11-20T16:40:59Z gate G2 met: docker info --format '{{.ServerVersion}}' -> 29.10.0 (#35)
+- 2026-11-20T16:42:08Z feature validated and shipped
