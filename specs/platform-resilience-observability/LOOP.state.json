@@ -1,24 +1,62 @@
 {
   "feature": "platform-resilience-observability",
-  "currentWave": 1,
-  "waves": [
-    { "number": 1, "status": "pending" },
-    { "number": 2, "status": "pending" },
-    { "number": 3, "status": "pending" },
-    { "number": 4, "status": "pending" }
-  ],
+  "status": "done",
+  "iterations": 2,
+  "updated": "2026-11-20T16:42:08Z",
+  "waves": {
+    "1": {
+      "status": "done",
+      "branch": "feat/platform-resilience-observability-w1",
+      "updated": "2026-11-20T14:37:50Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "2": {
+      "status": "done",
+      "branch": "feat/platform-resilience-observability-w2",
+      "updated": "2026-11-20T16:37:08Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "3": {
+      "status": "done",
+      "branch": "feat/platform-resilience-observability-w3",
+      "updated": "2026-11-20T16:37:35Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "4": {
+      "status": "done",
+      "branch": "feat/platform-resilience-observability-w4",
+      "updated": "2026-11-20T16:38:40Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    }
+  },
   "gates": {
-    "G1": { "status": "pending", "evidence": null },
-    "G2": { "status": "pending", "evidence": null }
+    "G1": {
+      "status": "met",
+      "evidence": "specs/platform-resilience-observability/DECISION-REVIEW.md",
+      "updated": "2026-11-20T14:19:20Z"
+    },
+    "G2": {
+      "status": "met",
+      "evidence": "docker info --format '{{.ServerVersion}}' -> 29.10.0 (#35)",
+      "updated": "2026-11-20T16:40:59Z"
+    }
   },
-  "acceptanceCriteria": {
-    "AC-1": { "status": "pending" },
-    "AC-2": { "status": "pending" },
-    "AC-3": { "status": "pending" },
-    "AC-4": { "status": "pending" },
-    "AC-5": { "status": "pending" },
-    "AC-6": { "status": "pending" }
-  },
-  "mergePr": null,
-  "deployed": false
+  "events": [
+    "2026-11-20T14:19:20Z gate G1 met: specs/platform-resilience-observability/DECISION-REVIEW.md",
+    "2026-11-20T14:19:20Z gate G2 met: docker info --format '{{.ServerVersion}}' -> 29.10.0",
+    "2026-11-20T14:37:43Z start wave 1 on feat/platform-resilience-observability-w1",
+    "2026-11-20T14:37:50Z complete wave 1 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:36:32Z start wave 2 on feat/platform-resilience-observability-w2",
+    "2026-11-20T16:37:08Z complete wave 2 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:37:21Z start wave 3 on feat/platform-resilience-observability-w3",
+    "2026-11-20T16:37:35Z complete wave 3 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:38:28Z start wave 4 on feat/platform-resilience-observability-w4",
+    "2026-11-20T16:38:40Z complete wave 4 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:40:59Z gate G2 met: docker info --format '{{.ServerVersion}}' -> 29.10.0 (#35)",
+    "2026-11-20T16:42:08Z feature validated and shipped"
+  ]
 }

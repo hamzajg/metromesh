@@ -58,11 +58,11 @@ This makes the platform hard to operate and extend as it grows.
 
 | AC | Scenario (from EXAMPLES.feature) | Verified by |
 |----|----------------------------------|-------------|
-| AC-1 | Every HTTP service serves OpenAPI JSON at `/swagger/v1/swagger.json` | Integration test |
-| AC-2 | All routes versioned under `/v1/*`; OpenAPI info version set | Code review + test |
-| AC-3 | Service self-registers with discovery agent at startup | Integration test |
-| AC-4 | Service catalog lists all deployables with health status | Unit/test |
-| AC-5 | Maintenance->registry dependency declared and visible | Unit/test |
+| 1 | Every HTTP service serves OpenAPI JSON at `/swagger/v1/swagger.json` | @w1 |
+| 2 | All routes versioned under `/v1/*`; OpenAPI info version set | @w1 |
+| 3 | Service self-registers with discovery agent at startup | @w1 |
+| 4 | Service catalog lists all deployables with health status | @w1 |
+| 5 | Maintenance->registry dependency declared and visible | @w1 |
 
 ## Related
 

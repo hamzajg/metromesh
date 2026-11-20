@@ -65,12 +65,12 @@ service repeats ad-hoc resilience logic instead of sharing a platform concern.
 
 | AC | Scenario (from EXAMPLES.feature) | Verified by |
 |----|----------------------------------|-------------|
-| AC-1 | Service exposes `/metrics` with OpenTelemetry counters | Integration test |
-| AC-2 | Correlation ID propagated from HTTP request into Kafka event envelope | Integration test |
-| AC-3 | Causation ID chains producer -> Kafka -> consumer logs | Integration test |
-| AC-4 | Circuit breaker trips and returns fallback when downstream dependency fails | Unit test |
-| AC-5 | Bounded retries with backoff before dead-lettering | Integration test |
-| AC-6 | All services share resilience abstractions from `MetroMesh.Telemetry.Core` | Build + code review |
+| 1 | Service exposes `/metrics` with OpenTelemetry counters | @w1 |
+| 2 | Correlation ID propagated from HTTP request into Kafka event envelope | @w1 |
+| 3 | Causation ID chains producer -> Kafka -> consumer logs | @w1 |
+| 4 | Circuit breaker trips and returns fallback when downstream dependency fails | @w1 |
+| 5 | Bounded retries with backoff before dead-lettering | @w1 |
+| 6 | All services share resilience abstractions from `MetroMesh.Telemetry.Core` | @w1 |
 
 ## Related
 

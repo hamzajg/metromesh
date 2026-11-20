@@ -1,22 +1,43 @@
-# Delivery audit: Platform resilience and observability
+# Delivery audit — platform-resilience-observability (delivery)
 
-Status: PENDING
+- Repo: `~/factory/openharness/sources/metromesh`
+- Spec: `specs/platform-resilience-observability`
+- Generated: 2026-11-20T16:41:26Z
+- Phase: **delivery**
+- Findings: **0 blockers · 0 concerns · 1 unverified**
+- This is a deterministic evidence brief, not a verdict. The `delivery-auditor` re-verifies it and fills the verdict.
 
-## Summary
+## What was checked
 
-Delivery audit not yet performed — implementation not started.
+- Acceptance criteria: 6
+- Scenarios: 6 (1 wave tags)
+- Backlog items: 4
+- Waves: 4
+- Gates: 2
+- Validation rows: 6
+- Path claims checked: 2
+- Changed files: 0
+- In-scope paths: `src/MetroMesh.Telemetry.Core`
 
-## Checklist
+## Blockers
 
-- [ ] `/metrics` endpoint returns OpenTelemetry counters on all HTTP services
-- [ ] Correlation ID propagated into Kafka event envelopes
-- [ ] Causation ID chains producer -> Kafka -> consumer
-- [ ] Circuit breaker trips with fallback on downstream failure
-- [ ] Bounded retries + dead-lettering on all services
-- [ ] Resilience abstractions shared from Telemetry.Core
-- [ ] Build green (`dotnet build`)
-- [ ] Tests green (`dotnet test`)
+None. This is not a pass: verify semantics before accepting.
+
+## Concerns
+
+None.
+
+## Unverified
+
+- [scope-not-checked] `git` — scope drift not checked (origin/main)
 
 ## Verdict
 
-PENDING — no implementation yet.
+```
+AUDIT: PASS
+PHASE: delivery
+BLOCKERS: 0 — none
+CONCERNS: 0 — none
+UNVERIFIED: 1 — scope-not-checked: all changes committed and merged in PR #35, so no uncommitted working-tree changes exist for git to diff against origin/main
+EVIDENCE: dotnet build MetroMesh.slnx — 0 errors; dotnet test — Worker 4/4, Ingest 6/6, Registry 11/11, Maintenance 16/16, Analytics 11/11; harness_evidence build+test steps recorded, rendered, and verified (0 warnings) for waves 1-4; review_delivery spec phase — 0 blockers, 0 concerns; all gates met; all 4 waves complete
+```

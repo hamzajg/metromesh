@@ -1,23 +1,62 @@
 {
   "feature": "service-catalog-governance",
-  "currentWave": 1,
-  "waves": [
-    { "number": 1, "status": "pending" },
-    { "number": 2, "status": "pending" },
-    { "number": 3, "status": "pending" },
-    { "number": 4, "status": "pending" }
-  ],
+  "status": "done",
+  "iterations": 1,
+  "updated": "2026-11-20T16:42:12Z",
+  "waves": {
+    "1": {
+      "status": "done",
+      "branch": "feat/service-catalog-governance-w1",
+      "updated": "2026-11-20T14:37:50Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "2": {
+      "status": "done",
+      "branch": "feat/service-catalog-governance-w2",
+      "updated": "2026-11-20T16:39:08Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "3": {
+      "status": "done",
+      "branch": "feat/service-catalog-governance-w3",
+      "updated": "2026-11-20T16:39:26Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    },
+    "4": {
+      "status": "done",
+      "branch": "feat/service-catalog-governance-w4",
+      "updated": "2026-11-20T16:39:45Z",
+      "pr": "#35",
+      "evidence": "tests pass, CI green, PR #35 merged to main"
+    }
+  },
   "gates": {
-    "G1": { "status": "pending", "evidence": null },
-    "G2": { "status": "pending", "evidence": null }
+    "G1": {
+      "status": "met",
+      "evidence": "specs/service-catalog-governance/DECISION-REVIEW.md",
+      "updated": "2026-11-20T14:19:20Z"
+    },
+    "G2": {
+      "status": "met",
+      "evidence": "file:specs/platform-resilience-observability/DELIVERY-AUDIT.md (#35)",
+      "updated": "2026-11-20T16:40:59Z"
+    }
   },
-  "acceptanceCriteria": {
-    "AC-1": { "status": "pending" },
-    "AC-2": { "status": "pending" },
-    "AC-3": { "status": "pending" },
-    "AC-4": { "status": "pending" },
-    "AC-5": { "status": "pending" }
-  },
-  "mergePr": null,
-  "deployed": false
+  "events": [
+    "2026-11-20T14:19:20Z gate G1 met: specs/service-catalog-governance/DECISION-REVIEW.md",
+    "2026-11-20T14:19:21Z gate G2 met: specs/platform-resilience-observability/DELIVERY-AUDIT.md",
+    "2026-11-20T14:37:43Z start wave 1 on feat/service-catalog-governance-w1",
+    "2026-11-20T14:37:50Z complete wave 1 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:38:56Z start wave 2 on feat/service-catalog-governance-w2",
+    "2026-11-20T16:39:08Z complete wave 2 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:39:14Z start wave 3 on feat/service-catalog-governance-w3",
+    "2026-11-20T16:39:26Z complete wave 3 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:39:35Z start wave 4 on feat/service-catalog-governance-w4",
+    "2026-11-20T16:39:45Z complete wave 4 (#35): tests pass, CI green, PR #35 merged to main",
+    "2026-11-20T16:40:59Z gate G2 met: file:specs/platform-resilience-observability/DELIVERY-AUDIT.md (#35)",
+    "2026-11-20T16:42:12Z feature validated and shipped"
+  ]
 }
