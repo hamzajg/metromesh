@@ -2,7 +2,7 @@
   "feature": "ridership-analytics",
   "status": "running",
   "iterations": 2,
-  "updated": "2026-11-20T07:30:49Z",
+  "updated": "2026-11-20T07:36:18Z",
   "waves": {
     "1": {
       "status": "done",
@@ -10,6 +10,13 @@
       "pr": "#18",
       "evidence": "tests 7/7 passing via dotnet test incl. real Postgres Testcontainers; PR #18 open to main",
       "updated": "2026-11-20T07:30:49Z"
+    },
+    "2": {
+      "status": "in-progress",
+      "branch": "feat/ridership-analytics-w2",
+      "pr": "\u2014",
+      "evidence": "\u2014",
+      "updated": "2026-11-20T07:36:18Z"
     }
   },
   "gates": {
@@ -22,6 +29,7 @@
   "events": [
     "2026-11-20T07:16:07Z gate G1 met: file:specs/ridership-analytics/DECISION-REVIEW.md",
     "2026-11-20T07:17:27Z start wave 1 on feat/ridership-analytics-w1",
-    "2026-11-20T07:30:49Z complete wave 1 (#18): tests 7/7 passing via dotnet test incl. real Postgres Testcontainers; PR #18 open to main"
+    "2026-11-20T07:30:49Z complete wave 1 (#18): tests 7/7 passing via dotnet test incl. real Postgres Testcontainers; PR #18 open to main",
+    "2026-11-20T07:36:18Z start wave 2 on feat/ridership-analytics-w2"
   ]
 }

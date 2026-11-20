@@ -1,7 +1,5 @@
 using MetroMesh.Analytics.Contracts;
-using MetroMesh.Analytics.Contracts;
 using Npgsql;
-using NpgsqlTypes;
 
 namespace MetroMesh.Analytics.Persistence;
 
@@ -120,5 +118,77 @@ public sealed class AnalyticsStore : IAnalyticsStore
         await using var command = new NpgsqlCommand("SELECT 1", connection);
         await command.ExecuteScalarAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<IReadOnlyList<RidershipCount>> GetCountsAsync(string? stationId, string? equipmentId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken cancellationToken = default)
+    {
+        var sql = """
+            SELECT station_id, equipment_id, COUNT(*) AS count
+            FROM ridership_readings
+            WHERE (@stationId IS NULL OR station_id = @stationId)
+              AND (@equipmentId IS NULL OR equipment_id = @equipmentId)
+              AND (@from IS NULL OR occurred_at >= @from)
+              AND (@to IS NULL OR occurred_at <= @to)
+            GROUP BY station_id, equipment_id
+            ORDER BY station_id, equipment_id;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("stationId", (object)stationId ?? DBNull.Value);
+        command.Parameters.AddWithValue("equipmentId", (object)equipmentId ?? DBNull.Value);
+        command.Parameters.AddWithValue("from", (object)from ?? DBNull.Value);
+        command.Parameters.AddWithValue("to", (object)to ?? DBNull.Value);
+
+        var results = new List<RidershipCount>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new RidershipCount(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.GetInt32(2)));
+        }
+
+        return results;
+    }
+
+    public async Task<IReadOnlyList<TimeBucketCount>> GetSeriesAsync(string? stationId, string? equipmentId, string bucket, DateTimeOffset? from, DateTimeOffset? to, CancellationToken cancellationToken = default)
+    {
+        var bucketExpr = bucket switch
+        {
+            "hour" => "date_trunc('hour', occurred_at)",
+            "day" => "date_trunc('day', occurred_at)",
+            _ => "date_trunc('hour', occurred_at)"
+        };
+
+        var sql = $$"""
+            SELECT {{bucketExpr}} AS bucket_start, COUNT(*) AS count
+            FROM ridership_readings
+            WHERE (@stationId IS NULL OR station_id = @stationId)
+              AND (@equipmentId IS NULL OR equipment_id = @equipmentId)
+              AND (@from IS NULL OR occurred_at >= @from)
+              AND (@to IS NULL OR occurred_at <= @to)
+            GROUP BY bucket_start
+            ORDER BY bucket_start;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("stationId", (object)stationId ?? DBNull.Value);
+        command.Parameters.AddWithValue("equipmentId", (object)equipmentId ?? DBNull.Value);
+        command.Parameters.AddWithValue("from", (object)from ?? DBNull.Value);
+        command.Parameters.AddWithValue("to", (object)to ?? DBNull.Value);
+
+        var results = new List<TimeBucketCount>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new TimeBucketCount(
+                reader.GetDateTime(0),
+                reader.GetInt32(1)));
+        }
+
+        return results;
     }
 }
