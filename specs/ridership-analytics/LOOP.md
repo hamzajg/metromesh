@@ -1,8 +1,8 @@
 # Delivery Loop — ridership-analytics
 
-Status: running
+Status: done
 Iterations: 2
-Updated: 2026-11-20T07:54:23Z
+Updated: 2026-11-20T07:59:32Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -25,3 +25,4 @@ Updated: 2026-11-20T07:54:23Z
 - 2026-11-20T07:48:17Z complete wave 2 (#19): tests 48/48 passing via dotnet test incl. analytics query API; PR #19 merged to main
 - 2026-11-20T07:48:24Z start wave 3 on feat/ridership-analytics-w3
 - 2026-11-20T07:54:23Z complete wave 3 (#20): compose config valid; analytics wired into 7-service stack; PR #20
+- 2026-11-20T07:59:32Z feature validated and shipped
