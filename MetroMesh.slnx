@@ -6,6 +6,7 @@
     <Project Path="src/MetroMesh.Telemetry.Ingest/MetroMesh.Telemetry.Ingest.csproj" />
     <Project Path="src/MetroMesh.Telemetry.Worker/MetroMesh.Telemetry.Worker.csproj" />
     <Project Path="src/MetroMesh.Analytics/MetroMesh.Analytics.csproj" />
+    <Project Path="src/MetroMesh.Identification.Review/MetroMesh.Identification.Review.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MetroMesh.Equipment.Registry.Tests/MetroMesh.Equipment.Registry.Tests.csproj" />
@@ -13,5 +14,6 @@
     <Project Path="tests/MetroMesh.Telemetry.Ingest.Tests/MetroMesh.Telemetry.Ingest.Tests.csproj" />
     <Project Path="tests/MetroMesh.Telemetry.Worker.Tests/MetroMesh.Telemetry.Worker.Tests.csproj" />
     <Project Path="tests/MetroMesh.Analytics.Tests/MetroMesh.Analytics.Tests.csproj" />
+    <Project Path="tests/MetroMesh.Identification.Review.Tests/MetroMesh.Identification.Review.Tests.csproj" />
   </Folder>
 </Solution>
