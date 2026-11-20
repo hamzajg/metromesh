@@ -107,3 +107,22 @@ services:
         condition: service_healthy
       redpanda:
         condition: service_healthy
+
+  analytics:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Analytics/Dockerfile
+    environment:
+      ConnectionStrings__AnalyticsDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Kafka__BootstrapServers: redpanda:9092
+      Kafka__TelemetryTopic: equipment.telemetry.v1
+      Kafka__ConsumerGroup: analytics-worker
+      Analytics__HealthUrl: http://0.0.0.0:8084/
+      Analytics__MaxAttempts: "3"
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
