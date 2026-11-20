@@ -145,3 +145,22 @@ services:
         condition: service_healthy
       redpanda:
         condition: service_healthy
+
+  passenger-loyalty:
+    build:
+      context: .
+      dockerfile: src/MetroMesh.Passenger.Loyalty/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8086
+      ConnectionStrings__PassengerDb: Host=postgres;Port=5432;Username=metromesh;Password=metromesh;Database=metromesh
+      Kafka__BootstrapServers: redpanda:9092
+      Kafka__PassengerTopic: passenger.loyalty.v1
+      Kafka__ConsumerGroup: passenger-loyalty-worker
+      Passenger__MaxAttempts: "3"
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy

@@ -1,0 +1,26 @@
+{
+  "feature": "passenger-loyalty",
+  "status": "running",
+  "iterations": 2,
+  "updated": "2026-11-20T09:55:32Z",
+  "waves": {
+    "1": {
+      "status": "in-progress",
+      "branch": "feat/passenger-loyalty-w1",
+      "pr": "\u2014",
+      "evidence": "\u2014",
+      "updated": "2026-11-20T09:55:32Z"
+    }
+  },
+  "gates": {
+    "G1": {
+      "status": "met",
+      "evidence": "file:specs/passenger-loyalty/DECISION-REVIEW.md",
+      "updated": "2026-11-20T09:54:37Z"
+    }
+  },
+  "events": [
+    "2026-11-20T09:54:37Z gate G1 met: file:specs/passenger-loyalty/DECISION-REVIEW.md",
+    "2026-11-20T09:55:32Z start wave 1 on feat/passenger-loyalty-w1"
+  ]
+}
