@@ -2,12 +2,12 @@
 
 Status: running
 Iterations: 2
-Updated: 2026-11-20T08:36:02Z
+Updated: 2026-11-20T08:41:49Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
-| 1 | in-progress | feat/identification-review-w1 | — | — | 2026-11-20T08:36:02Z |
-| 2 | pending | — | — | — | — |
+| 1 | done | feat/identification-review-w1 | #23 | tests 54/54 passing via dotnet test incl. identification API; PR #23 merged to main | 2026-11-20T08:41:35Z |
+| 2 | in-progress | feat/identification-review-w2 | — | — | 2026-11-20T08:41:49Z |
 | 3 | pending | — | — | — | — |
 
 ## Gates
@@ -20,3 +20,5 @@ Updated: 2026-11-20T08:36:02Z
 
 - 2026-11-20T08:35:32Z gate G1 met: file:specs/identification-review/DECISION-REVIEW.md
 - 2026-11-20T08:36:02Z start wave 1 on feat/identification-review-w1
+- 2026-11-20T08:41:35Z complete wave 1 (#23): tests 54/54 passing via dotnet test incl. identification API; PR #23 merged to main
+- 2026-11-20T08:41:49Z start wave 2 on feat/identification-review-w2
