@@ -1,8 +1,8 @@
 # Delivery Loop — identification-review
 
-Status: running
+Status: done
 Iterations: 2
-Updated: 2026-11-20T09:00:18Z
+Updated: 2026-11-20T09:04:00Z
 
 | Wave | Status | Branch | PR | Evidence | Updated |
 |------|--------|--------|----|----------|---------|
@@ -25,3 +25,4 @@ Updated: 2026-11-20T09:00:18Z
 - 2026-11-20T08:47:30Z complete wave 2 (#24): tests 63/63 passing via dotnet test incl. identification alerts/purge/review/audit; PR #24 merged to main
 - 2026-11-20T08:47:47Z start wave 3 on feat/identification-review-w3
 - 2026-11-20T09:00:18Z complete wave 3 (#25): build clean, domain events published to identification.review.v1; PR #25 merged to main
+- 2026-11-20T09:04:00Z feature validated and shipped
