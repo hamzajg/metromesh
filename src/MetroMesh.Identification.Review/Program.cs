@@ -117,6 +117,139 @@ app.MapGet("/v1/identifications/{interactionId}", async (
     .WithName("GetIdentification")
     .WithOpenApi();
 
+app.MapPost("/v1/identifications/{interactionId}/review", async (
+        string interactionId,
+        ReviewRequest? request,
+        HttpContext httpContext,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var correlationId = httpContext.Items[CorrelationIdMiddleware.ItemKey] as string ?? string.Empty;
+        if (request is null ||
+            !string.Equals(request.Decision, "approve", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(request.Decision, "reject", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.ValidationProblem(
+                new Dictionary<string, string[]> { ["decision"] = ["Decision must be 'approve' or 'reject'."] },
+                detail: "The review decision is invalid.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid review decision",
+                extensions: new Dictionary<string, object?> { ["correlationId"] = correlationId });
+        }
+
+        await store.RecordReviewAsync(new ReviewDecision(
+            interactionId,
+            request.Decision,
+            request.Reviewer ?? "unknown",
+            DateTimeOffset.UtcNow), cancellationToken);
+
+        await store.RecordAuditAsync(
+            new AuditEntry(
+                Guid.NewGuid().ToString("N"),
+                interactionId,
+                $"review.{request.Decision.ToLower()}",
+                request.Reviewer ?? "unknown",
+                $"Review decision: {request.Decision}",
+                DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Ok(new { interactionId, decision = request.Decision, recordedAt = DateTimeOffset.UtcNow });
+    })
+    .WithName("ReviewIdentification")
+    .WithOpenApi();
+
+app.MapGet("/v1/identifications/{interactionId}/review", async (
+        string interactionId,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var review = await store.GetReviewAsync(interactionId, cancellationToken);
+        return review is null ? Results.NotFound() : Results.Ok(review);
+    })
+    .WithName("GetReview")
+    .WithOpenApi();
+
+app.MapPost("/v1/alerts", async (
+        AlertNotification? alert,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        if (alert is null)
+        {
+            return Results.BadRequest(new { error = "Alert body is required." });
+        }
+
+        await store.RecordAlertAsync(alert, cancellationToken);
+        return Results.Accepted($"/v1/alerts/{alert.Id}", alert);
+    })
+    .WithName("CreateAlert")
+    .WithOpenApi();
+
+app.MapGet("/v1/alerts", async (
+        string? interactionId,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var alerts = await store.GetAlertsAsync(interactionId, cancellationToken);
+        return Results.Ok(alerts);
+    })
+    .WithName("ListAlerts")
+    .WithOpenApi();
+
+app.MapPost("/v1/purge", async (
+        PurgeRequest? request,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var olderThan = request?.OlderThan is not null
+            ? DateTimeOffset.Parse(request.OlderThan)
+            : DateTimeOffset.UtcNow.AddDays(-90);
+        var reason = request?.Reason ?? "retention";
+
+        var purged = await store.PurgeNonMatchOlderThanAsync(olderThan, reason, cancellationToken);
+
+        await store.RecordAuditAsync(
+            new AuditEntry(
+                Guid.NewGuid().ToString("N"),
+                "purge",
+                "purge.nonmatch",
+                "system",
+                $"Purged {purged} non-match records older than {olderThan:O} ({reason})",
+                DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Ok(new { purged, olderThan, reason, purgedAt = DateTimeOffset.UtcNow });
+    })
+    .WithName("PurgeNonMatch")
+    .WithOpenApi();
+
+app.MapGet("/v1/audit", async (
+        string? interactionId,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        var entries = await store.GetAuditAsync(interactionId, cancellationToken);
+        return Results.Ok(entries);
+    })
+    .WithName("ListAudit")
+    .WithOpenApi();
+
+app.MapPost("/v1/audit", async (
+        AuditEntry? entry,
+        IIdentificationStore store,
+        CancellationToken cancellationToken) =>
+    {
+        if (entry is null)
+        {
+            return Results.BadRequest(new { error = "Audit entry body is required." });
+        }
+
+        await store.RecordAuditAsync(entry, cancellationToken);
+        return Results.Accepted($"/v1/audit/{entry.Id}", entry);
+    })
+    .WithName("CreateAudit")
+    .WithOpenApi();
+
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
     .WithName("Liveness")
     .WithOpenApi();
