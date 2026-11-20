@@ -31,6 +31,16 @@ MetroMesh transit operations platform — event-driven equipment telemetry backb
   (redelivery cannot double-count); exposes `GET /v1/ridership/counts` and
   `GET /v1/ridership/series` with API-key auth, plus `/health/live` and
   `/health/ready`.
+- **Identification Review** (`src/MetroMesh.Identification.Review`, port 8085)
+  consumes identification events from cameras/gateways, writing customer
+  station interactions to PostgreSQL with idempotent processed-marking and
+  PII redaction at write. Exposes `POST /v1/identifications` (ingest),
+  `GET /v1/identifications/{id}` (retrieve), `POST /v1/identifications/{id}/review`
+  (human review gate), `POST /v1/alerts` (offender-match alerts),
+  `POST /v1/purge` (retention purge), and `POST /v1/audit` (audit trail).
+  Publishes `identification.interaction.created` and
+  `identification.interaction.reviewed` domain events to
+  `identification.review.v1`. `/health/live` and `/health/ready` probes.
 
 ## Quickstart (local smoke)
 
@@ -71,6 +81,7 @@ curl -s http://localhost:8080/v1/events/evt_1 -H 'X-MetroMesh-Api-Key: dev-api-k
 | Registry outbox | `Outbox__Enabled` / `Outbox__PollIntervalMs` / `Outbox__BatchSize` | `true` / `1000` / `50` |
 | Maintenance DB | `ConnectionStrings__MaintenanceDb` | required by maintenance service |
 | Analytics DB | `ConnectionStrings__AnalyticsDb` or `METROMESH_DB` | required by analytics service |
+| Identification DB | `ConnectionStrings__IdentificationDb` or `METROMESH_DB` | required by identification service |
 | Maintenance topic | `Kafka__MaintenanceTopic` | `maintenance.workorder.v1` |
 | Registry endpoint (for maintenance) | `Maintenance__Registry__BaseUrl` / `Maintenance__Registry__ApiKey` | `http://localhost:8082` / `MetroMesh__ApiKey` |
 
@@ -89,5 +100,5 @@ xUnit + Testcontainers (Postgres/Redpanda) for integration coverage.
 
 Feature specs and delivery-loop state live under `specs/`. See
 `specs/equipment-telemetry-backbone/`, `specs/station-equipment-registry/`,
-`specs/maintenance-operations/`, and `specs/ridership-analytics/` for the
-shipped features.
+`specs/maintenance-operations/`, `specs/ridership-analytics/`, and
+`specs/identification-review/` for the shipped features.

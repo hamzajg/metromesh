@@ -5,7 +5,7 @@ Guidance for AI agents (and humans) working in this repository.
 ## Project
 
 MetroMesh is an event-driven equipment-telemetry backbone for transit
-operations. Five deployables share `MetroMesh.Telemetry.Core`:
+operations. Six deployables share `MetroMesh.Telemetry.Core`:
 
 - `src/MetroMesh.Telemetry.Ingest` — ASP.NET Core API (`POST /v1/events`,
   `GET /v1/events/{id}`, `/health/live`, `/health/ready`).
@@ -21,6 +21,14 @@ operations. Five deployables share `MetroMesh.Telemetry.Core`:
   consumes `equipment.telemetry.v1`, writes idempotent ridership readings,
   exposes `GET /v1/ridership/counts` and `GET /v1/ridership/series` with
   API-key auth, plus health probes.
+- `src/MetroMesh.Identification.Review` — ASP.NET Core identification API
+  (port 8085): consumes identification events from cameras/gateways, writes
+  idempotent customer station interactions with PII redaction at write,
+  exposes `POST /v1/identifications`, `GET /v1/identifications/{id}`,
+  `POST /v1/identifications/{id}/review`, `POST /v1/alerts`,
+  `POST /v1/purge`, `POST /v1/audit`; publishes `identification.interaction.created`
+  and `identification.interaction.reviewed` domain events to
+  `identification.review.v1`; health probes.
 - `src/MetroMesh.Telemetry.Core` — shared contracts, `ITelemetryEventStore`
   (Postgres implementation), and the `IEventBus`/Kafka producer used by
   both outbox publishers. No web/worker dependencies.
