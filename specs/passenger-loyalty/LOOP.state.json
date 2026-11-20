@@ -2,7 +2,7 @@
   "feature": "passenger-loyalty",
   "status": "running",
   "iterations": 2,
-  "updated": "2026-11-20T10:41:20Z",
+  "updated": "2026-11-20T10:43:50Z",
   "waves": {
     "1": {
       "status": "done",
@@ -19,11 +19,11 @@
       "updated": "2026-11-20T10:41:10Z"
     },
     "3": {
-      "status": "in-progress",
+      "status": "done",
       "branch": "feat/passenger-loyalty-w3",
-      "pr": "\u2014",
-      "evidence": "\u2014",
-      "updated": "2026-11-20T10:41:20Z"
+      "pr": "#31",
+      "evidence": "tests 18 passing; build clean; PR #31 merged to main",
+      "updated": "2026-11-20T10:43:50Z"
     }
   },
   "gates": {
@@ -39,6 +39,7 @@
     "2026-11-20T10:26:04Z complete wave 1 (#29): build clean; PR #29 merged to main",
     "2026-11-20T10:26:12Z start wave 2 on feat/passenger-loyalty-w2",
     "2026-11-20T10:41:10Z complete wave 2 (#30): tests 17 passing; PR #30 merged to main",
-    "2026-11-20T10:41:20Z start wave 3 on feat/passenger-loyalty-w3"
+    "2026-11-20T10:41:20Z start wave 3 on feat/passenger-loyalty-w3",
+    "2026-11-20T10:43:50Z complete wave 3 (#31): tests 18 passing; build clean; PR #31 merged to main"
   ]
 }
