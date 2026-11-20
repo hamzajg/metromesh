@@ -31,6 +31,35 @@ public sealed class PassengerStore : IPassengerStore
             previous_contact_phone text NULL,
             previous_address text NULL
         );
+
+        CREATE TABLE IF NOT EXISTS loyalty_programs (
+            id text PRIMARY KEY,
+            passenger_id text NOT NULL,
+            tier text NOT NULL,
+            status text NOT NULL DEFAULT 'active',
+            terms text NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            retired_at timestamptz NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS passenger_notifications (
+            id text PRIMARY KEY,
+            passenger_id text NOT NULL,
+            type text NOT NULL,
+            recipient text NOT NULL,
+            status text NOT NULL DEFAULT 'pending',
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
+
+        CREATE TABLE IF NOT EXISTS passenger_audit (
+            id text PRIMARY KEY,
+            passenger_id text NOT NULL,
+            action text NOT NULL,
+            actor text NULL,
+            details text NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
         """;
 
     private readonly NpgsqlDataSource _dataSource;
@@ -174,5 +203,214 @@ public sealed class PassengerStore : IPassengerStore
         await using var command = new NpgsqlCommand("SELECT 1", connection);
         await command.ExecuteScalarAsync(cancellationToken);
         return true;
+    }
+
+    public async Task RecordLoyaltyProgramAsync(LoyaltyProgram program, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            INSERT INTO loyalty_programs (
+                id, passenger_id, tier, status, terms, created_at, updated_at, retired_at)
+            VALUES (
+                @id, @passengerId, @tier, @status, @terms, @createdAt, @updatedAt, @retiredAt)
+            ON CONFLICT (id) DO NOTHING;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", program.Id);
+        command.Parameters.AddWithValue("passengerId", program.PassengerId);
+        command.Parameters.AddWithValue("tier", program.Tier);
+        command.Parameters.AddWithValue("status", program.Status);
+        command.Parameters.AddWithValue("terms", (object)program.Terms ?? DBNull.Value);
+        command.Parameters.AddWithValue("createdAt", program.CreatedAt);
+        command.Parameters.AddWithValue("updatedAt", program.UpdatedAt);
+        command.Parameters.AddWithValue("retiredAt", (object)program.RetiredAt ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<LoyaltyProgram?> GetLoyaltyProgramAsync(string programId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT id, passenger_id, tier, status, terms, created_at, updated_at, retired_at
+            FROM loyalty_programs
+            WHERE id = @id;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", programId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new LoyaltyProgram(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetString(3),
+            reader.IsDBNull(4) ? null : reader.GetString(4),
+            reader.GetDateTime(5),
+            reader.GetDateTime(6),
+            reader.IsDBNull(7) ? (DateTimeOffset?)null : reader.GetDateTime(7));
+    }
+
+    public async Task<IReadOnlyList<LoyaltyProgram>> GetLoyaltyProgramsAsync(string passengerId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT id, passenger_id, tier, status, terms, created_at, updated_at, retired_at
+            FROM loyalty_programs
+            WHERE passenger_id = @passengerId
+            ORDER BY created_at DESC;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("passengerId", passengerId);
+
+        var results = new List<LoyaltyProgram>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new LoyaltyProgram(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.GetDateTime(5),
+                reader.GetDateTime(6),
+                reader.IsDBNull(7) ? (DateTimeOffset?)null : reader.GetDateTime(7)));
+        }
+
+        return results;
+    }
+
+    public async Task RetireLoyaltyProgramAsync(string programId, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE loyalty_programs
+            SET status = 'retired', retired_at = @retiredAt, updated_at = @updatedAt
+            WHERE id = @id;
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", programId);
+        command.Parameters.AddWithValue("retiredAt", DateTimeOffset.UtcNow);
+        command.Parameters.AddWithValue("updatedAt", DateTimeOffset.UtcNow);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task RecordNotificationAsync(Notification notification, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            INSERT INTO passenger_notifications (id, passenger_id, type, recipient, status)
+            VALUES (@id, @passengerId, @type, @recipient, @status);
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", notification.Id);
+        command.Parameters.AddWithValue("passengerId", notification.PassengerId);
+        command.Parameters.AddWithValue("type", notification.Type);
+        command.Parameters.AddWithValue("recipient", notification.Recipient);
+        command.Parameters.AddWithValue("status", notification.Status);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Notification>> GetNotificationsAsync(string? passengerId, CancellationToken cancellationToken = default)
+    {
+        var sql = passengerId is not null
+            ? """
+                SELECT id, passenger_id, type, recipient, status, created_at
+                FROM passenger_notifications
+                WHERE passenger_id = @passengerId
+                ORDER BY created_at;
+                """
+            : """
+                SELECT id, passenger_id, type, recipient, status, created_at
+                FROM passenger_notifications
+                ORDER BY created_at;
+                """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        if (passengerId is not null)
+        {
+            command.Parameters.AddWithValue("passengerId", passengerId);
+        }
+
+        var results = new List<Notification>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new Notification(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetDateTime(5)));
+        }
+
+        return results;
+    }
+
+    public async Task RecordAuditAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            INSERT INTO passenger_audit (id, passenger_id, action, actor, details)
+            VALUES (@id, @passengerId, @action, @actor, @details);
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", entry.Id);
+        command.Parameters.AddWithValue("passengerId", entry.PassengerId);
+        command.Parameters.AddWithValue("action", entry.Action);
+        command.Parameters.AddWithValue("actor", (object)entry.Actor ?? DBNull.Value);
+        command.Parameters.AddWithValue("details", (object)entry.Details ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuditEntry>> GetAuditAsync(string? passengerId, CancellationToken cancellationToken = default)
+    {
+        var sql = passengerId is not null
+            ? """
+                SELECT id, passenger_id, action, actor, details, created_at
+                FROM passenger_audit
+                WHERE passenger_id = @passengerId
+                ORDER BY created_at;
+                """
+            : """
+                SELECT id, passenger_id, action, actor, details, created_at
+                FROM passenger_audit
+                ORDER BY created_at;
+                """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        if (passengerId is not null)
+        {
+            command.Parameters.AddWithValue("passengerId", passengerId);
+        }
+
+        var results = new List<AuditEntry>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new AuditEntry(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.GetDateTime(5)));
+        }
+
+        return results;
     }
 }

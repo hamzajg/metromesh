@@ -85,4 +85,61 @@ public class PassengerProcessingTests
 
         return JsonSerializer.Serialize(envelope, JsonOptions);
     }
+
+    [Fact(DisplayName = "Store records loyalty program for passenger")]
+    public async Task Store_records_loyalty_program_for_passenger()
+    {
+        var store = new FakePassengerStore();
+        var program = new LoyaltyProgram("lp-1", "pass-1", "gold", "active", "terms-v1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+
+        await store.RecordLoyaltyProgramAsync(program);
+
+        var programs = await store.GetLoyaltyProgramsAsync("pass-1");
+        Assert.Single(programs);
+        Assert.Equal("gold", programs[0].Tier);
+        Assert.Equal("active", programs[0].Status);
+    }
+
+    [Fact(DisplayName = "Store retires loyalty program")]
+    public async Task Store_retires_loyalty_program()
+    {
+        var store = new FakePassengerStore();
+        var program = new LoyaltyProgram("lp-1", "pass-1", "gold", "active", "terms-v1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+        await store.RecordLoyaltyProgramAsync(program);
+
+        await store.RetireLoyaltyProgramAsync("lp-1");
+
+        var retired = await store.GetLoyaltyProgramAsync("lp-1");
+        Assert.NotNull(retired);
+        Assert.Equal("retired", retired!.Status);
+        Assert.NotNull(retired.RetiredAt);
+    }
+
+    [Fact(DisplayName = "Store records notification and retrieves by passenger")]
+    public async Task Store_records_notification_and_retrieves_by_passenger()
+    {
+        var store = new FakePassengerStore();
+        var notification = new Notification("n-1", "pass-1", "profile.updated", "passenger@email.com", "pending", DateTimeOffset.UtcNow);
+
+        await store.RecordNotificationAsync(notification);
+
+        var notifications = await store.GetNotificationsAsync("pass-1");
+        Assert.Single(notifications);
+        Assert.Equal("profile.updated", notifications[0].Type);
+        Assert.Equal("passenger@email.com", notifications[0].Recipient);
+    }
+
+    [Fact(DisplayName = "Store records audit entry")]
+    public async Task Store_records_audit_entry()
+    {
+        var store = new FakePassengerStore();
+        var entry = new AuditEntry("a-1", "pass-1", "loyalty.created", "operator-1", "Created gold loyalty program", DateTimeOffset.UtcNow);
+
+        await store.RecordAuditAsync(entry);
+
+        var audit = await store.GetAuditAsync("pass-1");
+        Assert.Single(audit);
+        Assert.Equal("loyalty.created", audit[0].Action);
+        Assert.Equal("operator-1", audit[0].Actor);
+    }
 }
