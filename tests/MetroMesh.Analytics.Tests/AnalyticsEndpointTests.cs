@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using MetroMesh.Analytics.Contracts;
 using MetroMesh.Analytics.Persistence;
 using MetroMesh.Analytics.Tests;
@@ -134,6 +135,8 @@ public sealed class AnalyticsFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IAnalyticsStore>();
             services.AddSingleton<IAnalyticsStore>(_store);
+            // The consumer would otherwise block startup on an absent Kafka broker.
+            services.RemoveAll<IHostedService>();
         });
     }
 }
