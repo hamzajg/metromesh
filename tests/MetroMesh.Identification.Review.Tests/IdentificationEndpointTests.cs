@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using MetroMesh.Identification.Review.Contracts;
 using MetroMesh.Identification.Review.Persistence;
 using MetroMesh.Identification.Review.Tests;
+using Testcontainers.Redpanda;
 
 namespace MetroMesh.Identification.Review.Tests;
 
@@ -185,14 +187,25 @@ public class IdentificationEndpointTests : IClassFixture<IdentificationFactory>
 public sealed class IdentificationFactory : WebApplicationFactory<Program>
 {
     private readonly FakeIdentificationStore _store = new();
+    private readonly RedpandaContainer _redpanda = new RedpandaBuilder("redpandadata/redpanda:v22.2.1").Build();
 
     public FakeIdentificationStore Store => _store;
 
+    // Ingest and review publish to Kafka before responding, so the suite needs
+    // a real broker instead of assuming one is running on localhost.
     public IdentificationFactory()
     {
+        _redpanda.StartAsync().GetAwaiter().GetResult();
+
         Environment.SetEnvironmentVariable(
             "ConnectionStrings__IdentificationDb",
             "Host=localhost;Username=postgres;Password=postgres;Database=postgres");
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await _redpanda.DisposeAsync();
+        await base.DisposeAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -201,7 +214,8 @@ public sealed class IdentificationFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["MetroMesh:ApiKey"] = "test-api-key"
+                ["MetroMesh:ApiKey"] = "test-api-key",
+                ["Kafka:BootstrapServers"] = _redpanda.GetBootstrapAddress()
             });
         });
 
@@ -209,6 +223,8 @@ public sealed class IdentificationFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IIdentificationStore>();
             services.AddSingleton<IIdentificationStore>(_store);
+            // The consumer would otherwise block startup on an absent Kafka broker.
+            services.RemoveAll<IHostedService>();
         });
     }
 }

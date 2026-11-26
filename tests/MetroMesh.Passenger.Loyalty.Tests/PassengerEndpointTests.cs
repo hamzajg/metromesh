@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using MetroMesh.Passenger.Loyalty.Contracts;
 using MetroMesh.Passenger.Loyalty.Persistence;
 using MetroMesh.Passenger.Loyalty.Tests;
+using Testcontainers.Redpanda;
 
 namespace MetroMesh.Passenger.Loyalty.Tests;
 
@@ -157,14 +158,25 @@ public class PassengerEndpointTests : IClassFixture<PassengerFactory>
 public sealed class PassengerFactory : WebApplicationFactory<Program>
 {
     private readonly FakePassengerStore _store = new();
+    private readonly RedpandaContainer _redpanda = new RedpandaBuilder("redpandadata/redpanda:v22.2.1").Build();
 
     public FakePassengerStore Store => _store;
 
+    // The create endpoint publishes to Kafka before responding, so the suite
+    // needs a real broker instead of assuming one is running on localhost.
     public PassengerFactory()
     {
+        _redpanda.StartAsync().GetAwaiter().GetResult();
+
         Environment.SetEnvironmentVariable(
             "ConnectionStrings__PassengerDb",
             "Host=localhost;Username=postgres;Password=postgres;Database=postgres");
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await _redpanda.DisposeAsync();
+        await base.DisposeAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -173,7 +185,8 @@ public sealed class PassengerFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["MetroMesh:ApiKey"] = "test-api-key"
+                ["MetroMesh:ApiKey"] = "test-api-key",
+                ["Kafka:BootstrapServers"] = _redpanda.GetBootstrapAddress()
             });
         });
 

@@ -6,12 +6,18 @@ using MetroMesh.Passenger.Loyalty.Services;
 using MetroMesh.Telemetry.Core.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Testcontainers.Redpanda;
 
 namespace MetroMesh.Passenger.Loyalty.Tests;
 
-public class PassengerProcessingTests
+public class PassengerProcessingTests : IAsyncLifetime
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly RedpandaContainer _redpanda = new RedpandaBuilder("redpandadata/redpanda:v22.2.1").Build();
+
+    public Task InitializeAsync() => _redpanda.StartAsync();
+
+    public Task DisposeAsync() => _redpanda.DisposeAsync().AsTask();
 
     [Fact(DisplayName = "Passenger records processed event exactly once")]
     public async Task Passenger_records_processed_event_exactly_once()
@@ -151,7 +157,7 @@ public class PassengerProcessingTests
     {
         var config = new Dictionary<string, string?>
         {
-            ["Kafka:BootstrapServers"] = "localhost:9092",
+            ["Kafka:BootstrapServers"] = _redpanda.GetBootstrapAddress(),
             ["Kafka:PassengerTopic"] = "passenger.loyalty.v1"
         };
 
